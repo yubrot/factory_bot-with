@@ -1,8 +1,32 @@
+require:
+  - rubocop-rspec
+  - rubocop-factory_bot
+
 AllCops:
-  TargetRubyVersion: 3.0
+  TargetRubyVersion: 3.2
+  NewCops: enable
+  SuggestExtensions:
+    rubocop-rake: false
+
+FactoryBot:
+  Enabled: true
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes
 
 Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
+
+Style/TrailingCommaInArguments:
+  EnforcedStyleForMultiline: consistent_comma
+
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: consistent_comma
+
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: consistent_comma
+
+# I prefer describing Act in AAA pattern by subject
+RSpec/NamedSubject:
+  Enabled: false
+
