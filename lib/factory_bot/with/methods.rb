@@ -7,23 +7,19 @@ module FactoryBot
       include FactoryBot::Syntax::Methods
 
       BUILD_STRATEGIES = %i[build build_stubbed create attributes_for with].freeze
+      VARIATIONS = {
+        unit: BUILD_STRATEGIES.to_h { [_1, _1] }.freeze,
+        pair: BUILD_STRATEGIES.to_h { [_1, :"#{_1}_pair"] }.freeze,
+        list: BUILD_STRATEGIES.to_h { [_1, :"#{_1}_list"] }.freeze,
+      }.freeze
 
-      BUILD_STRATEGIES.each do |build_strategy|
-        define_method(build_strategy) do |factory_name = nil, *args, **kwargs, &block|
-          return Proxy.new(self, __method__) unless factory_name
+      VARIATIONS.each do |variation, build_strategies|
+        build_strategies.each do |build_strategy, method_name|
+          define_method(method_name) do |factory_name = nil, *args, **kwargs, &block|
+            return Proxy.new(self, __method__) unless factory_name
 
-          With.new(factory_name, *args, **kwargs, &block).instantiate(build_strategy)
-        end
-      end
-
-      BUILD_STRATEGY_PAIR_METHODS = %i[build_pair build_stubbed_pair create_pair attributes_for_pair].freeze
-      BUILD_STRATEGY_LIST_METHODS = %i[build_list build_stubbed_list create_list attributes_for_list].freeze
-
-      (BUILD_STRATEGY_PAIR_METHODS + BUILD_STRATEGY_LIST_METHODS).each do |method_name|
-        define_method(method_name) do |factory_name = nil, *args, **kwargs, &block|
-          return Proxy.new(self, __method__) unless factory_name
-
-          super(factory_name, *args, **kwargs, &block)
+            With.new(variation, factory_name, *args, **kwargs, &block).instantiate(build_strategy)
+          end
         end
       end
     end

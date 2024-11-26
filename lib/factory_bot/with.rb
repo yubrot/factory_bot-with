@@ -9,9 +9,11 @@ require_relative "with/methods"
 module FactoryBot
   # An intermediate state for `with` operator.
   class With
-    attr_reader :factory_name, :withes, :args, :kwargs, :block
+    attr_reader :variation, :factory_name, :withes, :args, :kwargs, :block
 
-    def initialize(factory_name, *args, **kwargs, &block)
+    # @!visibility private
+    def initialize(variation, factory_name, *args, **kwargs, &block)
+      @variation = variation
       @factory_name = factory_name
       @withes, @args = args.partition { _1.is_a? self.class }
       @kwargs = kwargs
@@ -24,6 +26,7 @@ module FactoryBot
     def instantiate(build_strategy, ancestors = nil)
       return self if build_strategy == :with
 
+      factory_bot_method = Methods::VARIATIONS[variation][build_strategy]
       factory_name, kwargs =
         if ancestors
           kwargs = @kwargs.dup
@@ -33,15 +36,18 @@ module FactoryBot
         else
           [@factory_name, @kwargs]
         end
-
-      parent = FactoryBot.__send__(build_strategy, factory_name, *args, **kwargs, &block)
+      result = FactoryBot.__send__(factory_bot_method, factory_name, *args, **kwargs, &block)
 
       unless withes.empty?
-        ancestors = [[AssocInfo.get(@factory_name), parent], *ancestors || []]
-        withes.each { _1.instantiate(build_strategy, ancestors) }
+        parents = variation == :unit ? [result] : result
+        assoc_info = AssocInfo.get(@factory_name)
+        parents.each do |parent|
+          ancestors_for_child = [[assoc_info, parent], *ancestors || []]
+          withes.each { _1.instantiate(build_strategy, ancestors_for_child) }
+        end
       end
 
-      parent
+      result
     end
   end
 end

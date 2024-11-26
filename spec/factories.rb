@@ -58,4 +58,28 @@ module Test
       end
     end
   end
+
+  # TESTING recursive data structure
+  Node = Struct.new(:parent, :index, keyword_init: true)
+
+  FactoryBot.define do
+    factory(:node, class: "Test::Node") do
+      sequence(:index)
+
+      trait :non_root do
+        parent factory: :node
+      end
+    end
+  end
+
+  # TESTING create and attributes_for
+  Record = Struct.new(:name, :title, :created_at, keyword_init: true)
+
+  FactoryBot.define do
+    factory(:record, class: "Test::Record") do
+      name { "Record" }
+      title { "Title" }
+      to_create { |obj, _| obj.created_at = "2024-01-01" }
+    end
+  end
 end

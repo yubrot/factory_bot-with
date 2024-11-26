@@ -31,8 +31,11 @@ RSpec.describe FactoryBot::With::Methods do
       subject { build.user(with.user(name: "Bob"), name: "John") }
 
       it "also creates child objects with same build strategy" do
-        expect(subject).to eq Test::User.new(name: "John")
-        expect(objects[1]).to eq Test::User.new(name: "Bob")
+        expect(subject).to eq objects[0]
+        expect(objects).to eq [
+          Test::User.new(name: "John"),
+          Test::User.new(name: "Bob"),
+        ]
       end
     end
 
@@ -40,9 +43,12 @@ RSpec.describe FactoryBot::With::Methods do
       subject { build.user(with.user(with.user, name: "Bob"), name: "John") }
 
       it "also creates child objects with same build strategy" do
-        expect(subject).to eq Test::User.new(name: "John")
-        expect(objects[1]).to eq Test::User.new(name: "Bob")
-        expect(objects[2]).to eq Test::User.new
+        expect(subject).to eq objects[0]
+        expect(objects).to eq [
+          Test::User.new(name: "John"),
+          Test::User.new(name: "Bob"),
+          Test::User.new,
+        ]
       end
     end
 
@@ -50,16 +56,22 @@ RSpec.describe FactoryBot::With::Methods do
       subject { build.user(with.account, name: "John") }
 
       it "automatically adds ancestors to keyword arguments by the association information" do
-        expect(subject).to eq Test::User.new(name: "John")
-        expect(objects[1]).to eq Test::Account.new(user: subject)
+        expect(subject).to eq objects[0]
+        expect(objects).to eq [
+          Test::User.new(name: "John"),
+          Test::Account.new(user: subject),
+        ]
       end
 
       context "when the attribute correspond to the association is explicitly specified" do
         subject { build.user(with.account(user: nil), name: "John") }
 
         it "does nothing about keyword arguments" do
-          expect(subject).to eq Test::User.new(name: "John")
-          expect(objects[1]).to eq Test::Account.new(user: nil)
+          expect(subject).to eq objects[0]
+          expect(objects).to eq [
+            Test::User.new(name: "John"),
+            Test::Account.new(user: nil),
+          ]
         end
       end
 
@@ -67,10 +79,13 @@ RSpec.describe FactoryBot::With::Methods do
         subject { build.author(with.user(with.post, with.comment, with.account, name: "B"), name: "A") }
 
         it "picks a closer ancestor" do
-          expect(subject).to eq Test::User.new(name: "A")
-          expect(objects[1]).to eq Test::User.new(name: "B")
-          expect(objects[2]).to eq Test::Post.new(author: subject)
-          expect(objects[3]).to eq Test::Comment.new(commenter: Test::User.new)
+          expect(subject).to eq objects[0]
+          expect(objects[0..3]).to eq [
+            Test::User.new(name: "A"),
+            Test::User.new(name: "B"),
+            Test::Post.new(author: subject),
+            Test::Comment.new(commenter: Test::User.new),
+          ]
           # We use `objects.last` instead of `objects[4]` here, since the behavior of `association :commenter` is
           # hidden by FactoryBot (potentially FactoryBot.build call happens)
           expect(objects.last).to eq Test::Account.new(user: objects[1])
@@ -81,10 +96,13 @@ RSpec.describe FactoryBot::With::Methods do
         subject { build.author(with.post(title: "Hello"), with.post(title: "World"), with.account) }
 
         it "respects every factory names" do
-          expect(subject).to eq Test::User.new
-          expect(objects[1]).to eq Test::Post.new(title: "Hello", author: subject)
-          expect(objects[2]).to eq Test::Post.new(title: "World", author: subject)
-          expect(objects[3]).to eq Test::Account.new(user: subject)
+          expect(subject).to eq objects[0]
+          expect(objects).to eq [
+            Test::User.new,
+            Test::Post.new(title: "Hello", author: subject),
+            Test::Post.new(title: "World", author: subject),
+            Test::Account.new(user: subject),
+          ]
         end
       end
 
@@ -92,8 +110,11 @@ RSpec.describe FactoryBot::With::Methods do
         subject { build.photo(with.tag, title: "P") }
 
         it "respects every factory names" do
-          expect(subject).to eq Test::Photo.new(title: "P")
-          expect(objects[1]).to eq Test::Tag.new(taggable: subject)
+          expect(subject).to eq objects[0]
+          expect(objects).to eq [
+            Test::Photo.new(title: "P"),
+            Test::Tag.new(taggable: subject),
+          ]
         end
       end
     end
@@ -102,19 +123,196 @@ RSpec.describe FactoryBot::With::Methods do
       subject { build.customer(with.profile(name: "Hello"), id: 1) }
 
       it "autocompletes a factory name from ancestors" do
-        expect(subject).to eq Test::Customer.new(id: 1)
-        expect(objects[1]).to eq Test::CustomerProfile.new(customer: subject, name: "Hello")
+        expect(subject).to eq objects[0]
+        expect(objects).to eq [
+          Test::Customer.new(id: 1),
+          Test::CustomerProfile.new(customer: subject, name: "Hello"),
+        ]
       end
 
       context "with factories that have multiple factory names" do
         subject { build.premium_customer(with.profile(name: "Hello"), id: 2) }
 
         it "respects every factory names" do
-          expect(subject).to eq Test::Customer.new(id: 2, plan: "premium")
-          expect(objects[1]).to eq Test::CustomerProfile.new(customer: subject, name: "Hello")
+          expect(subject).to eq objects[0]
+          expect(objects).to eq [
+            Test::Customer.new(id: 2, plan: "premium"),
+            Test::CustomerProfile.new(customer: subject, name: "Hello"),
+          ]
         end
       end
     end
+  end
+
+  describe "#build_pair" do
+    subject { build_pair.node }
+
+    it "creates 2 objects" do
+      expect(subject).to eq [objects[0], objects[1]]
+      base = subject[0].index
+      expect(objects).to eq [
+        Test::Node.new(index: base),
+        Test::Node.new(index: base + 1),
+      ]
+    end
+
+    context "when each element has a single object" do
+      subject { build_pair.node(with.node) }
+
+      it "creates 2 + (2x 1) objects" do
+        expect(subject).to eq [objects[0], objects[1]]
+        base = subject[0].index
+        expect(objects).to eq [
+          Test::Node.new(index: base),
+          Test::Node.new(index: base + 1),
+          Test::Node.new(index: base + 2, parent: objects[0]),
+          Test::Node.new(index: base + 3, parent: objects[1]),
+        ]
+      end
+    end
+
+    context "when each element has a pair of objects" do
+      subject { build_pair.node(with_pair.node) }
+
+      it "creates 2 + (2x 2) objects" do
+        expect(subject).to eq [objects[0], objects[1]]
+        base = subject[0].index
+        expect(objects).to eq [
+          Test::Node.new(index: base),
+          Test::Node.new(index: base + 1),
+          Test::Node.new(index: base + 2, parent: objects[0]),
+          Test::Node.new(index: base + 3, parent: objects[0]),
+          Test::Node.new(index: base + 4, parent: objects[1]),
+          Test::Node.new(index: base + 5, parent: objects[1]),
+        ]
+      end
+    end
+
+    context "when a object has a pair of objects" do
+      subject { build.node(with_pair.node) }
+
+      it "creates 1 + (1x 2) objects" do
+        expect(subject).to eq objects[0]
+        base = subject.index
+        expect(objects).to eq [
+          Test::Node.new(index: base),
+          Test::Node.new(index: base + 1, parent: subject),
+          Test::Node.new(index: base + 2, parent: subject),
+        ]
+      end
+    end
+  end
+
+  describe "#build_list" do
+    subject { build_list.node(3) }
+
+    it "creates 3 objects" do
+      expect(subject).to eq [objects[0], objects[1], objects[2]]
+      base = subject[0].index
+      expect(objects).to eq [
+        Test::Node.new(index: base),
+        Test::Node.new(index: base + 1),
+        Test::Node.new(index: base + 2),
+      ]
+    end
+
+    context "when each element has a single object" do
+      subject { build_list.node(3, with.node) }
+
+      it "creates 3 + (3x 1) objects" do
+        expect(subject).to eq [objects[0], objects[1], objects[2]]
+        base = subject[0].index
+        expect(objects).to eq [
+          Test::Node.new(index: base),
+          Test::Node.new(index: base + 1),
+          Test::Node.new(index: base + 2),
+          Test::Node.new(index: base + 3, parent: objects[0]),
+          Test::Node.new(index: base + 4, parent: objects[1]),
+          Test::Node.new(index: base + 5, parent: objects[2]),
+        ]
+      end
+    end
+
+    context "when each element has a pair of objects" do
+      subject { build_list.node(3, with_pair.node) }
+
+      it "creates 3 + (3x 2) objects" do
+        expect(subject).to eq [objects[0], objects[1], objects[2]]
+        base = subject[0].index
+        expect(objects).to eq [
+          Test::Node.new(index: base),
+          Test::Node.new(index: base + 1),
+          Test::Node.new(index: base + 2),
+          Test::Node.new(index: base + 3, parent: objects[0]),
+          Test::Node.new(index: base + 4, parent: objects[0]),
+          Test::Node.new(index: base + 5, parent: objects[1]),
+          Test::Node.new(index: base + 6, parent: objects[1]),
+          Test::Node.new(index: base + 7, parent: objects[2]),
+          Test::Node.new(index: base + 8, parent: objects[2]),
+        ]
+      end
+    end
+
+    context "when a object has a list of objects" do
+      subject { build.node(with_list.node(4)) }
+
+      it "creates 1 + (1x 4) objects" do
+        expect(subject).to eq objects[0]
+        base = subject.index
+        expect(objects).to eq [
+          Test::Node.new(index: base),
+          Test::Node.new(index: base + 1, parent: subject),
+          Test::Node.new(index: base + 2, parent: subject),
+          Test::Node.new(index: base + 3, parent: subject),
+          Test::Node.new(index: base + 4, parent: subject),
+        ]
+      end
+    end
+
+    context "with nested list" do
+      subject { build_list.node(2, with_list.node(2, with_list.node(2))) }
+
+      it "creates 2 + (2x 2) + (2x 2x 2) objects" do
+        expect(subject).to eq [objects[0], objects[1]]
+        base = subject[0].index
+        expect(objects).to eq [
+          Test::Node.new(index: base),
+          Test::Node.new(index: base + 1),
+          Test::Node.new(index: base + 2, parent: objects[0]),
+          Test::Node.new(index: base + 3, parent: objects[0]),
+          Test::Node.new(index: base + 4, parent: objects[2]),
+          Test::Node.new(index: base + 5, parent: objects[2]),
+          Test::Node.new(index: base + 6, parent: objects[3]),
+          Test::Node.new(index: base + 7, parent: objects[3]),
+          Test::Node.new(index: base + 8, parent: objects[1]),
+          Test::Node.new(index: base + 9, parent: objects[1]),
+          Test::Node.new(index: base + 10, parent: objects[8]),
+          Test::Node.new(index: base + 11, parent: objects[8]),
+          Test::Node.new(index: base + 12, parent: objects[9]),
+          Test::Node.new(index: base + 13, parent: objects[9]),
+        ]
+      end
+    end
+  end
+
+  describe "#create, #create_pair, and #create_list" do
+    subject { create.record }
+
+    it "creates objects with create build strategy" do
+      expect(subject).to eq Test::Record.new(name: "Record", title: "Title", created_at: "2024-01-01")
+    end
+  end
+
+  describe "#attributes_for, #attributes_for_pair, and #attributes_for_list" do
+    subject { attributes_for.record }
+
+    it "creates objects with attributes_for build strategy" do
+      expect(subject).to eq(name: "Record", title: "Title")
+    end
+  end
+
+  describe "#build_stubbed, #build_stubbed_pair, and #build_stubbed_list" do
+    it "is almost similar to #build series, although the build strategy is different"
   end
 
   describe "#with" do
