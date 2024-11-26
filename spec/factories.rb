@@ -79,6 +79,11 @@ module Test
     factory(:record, class: "Test::Record") do
       name { "Record" }
       title { "Title" }
+
+      trait :example do
+        name { "Example" }
+      end
+
       to_create { |obj, _| obj.created_at = "2024-01-01" }
     end
   end

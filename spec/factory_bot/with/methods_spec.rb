@@ -142,6 +142,27 @@ RSpec.describe FactoryBot::With::Methods do
         end
       end
     end
+
+    describe "as a template" do
+      subject { build(record_template, title: "Overriden title") }
+
+      let(:record_template) { with.record(:example) }
+
+      it "creates an object after composing args and kwargs" do
+        expect(subject).to eq Test::Record.new(name: "Example", title: "Overriden title")
+      end
+
+      context "when the factory method is called without additional optional arguments" do
+        subject { build(record_template) }
+
+        before { allow(FactoryBot::With).to receive(:new).and_call_original }
+
+        it "does not create a new With instance when merging" do
+          subject
+          expect(FactoryBot::With).to have_received(:new).twice # one for record_template, one for build
+        end
+      end
+    end
   end
 
   describe "#build_pair" do
@@ -320,6 +341,7 @@ RSpec.describe FactoryBot::With::Methods do
 
     it "returns a With instance" do
       expect(subject).to have_attributes(
+        variation: :unit,
         factory_name: :author,
         withes: [have_attributes(factory_name: :post, args: [:world])],
         args: [:hello],

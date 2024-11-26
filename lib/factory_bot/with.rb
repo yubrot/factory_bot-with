@@ -21,6 +21,29 @@ module FactoryBot
     end
 
     # @!visibility private
+    def plain? = withes.empty? && args.empty? && kwargs.empty? && block.nil?
+
+    # @!visibility private
+    # @param other [With]
+    # @return [With]
+    def merge(other)
+      raise TypeError, "oter must be an instance of #{self.class}" unless other.is_a? self.class
+      raise ArgumentError, "other must have the same variation" if other.variation != variation
+      raise ArgumentError, "other must have the same factory_name" if other.factory_name != factory_name
+
+      return self if other.plain?
+      return other if plain?
+
+      self.class.new(
+        variation,
+        factory_name,
+        *args, *other.args, *withes, *other.withes,
+        **kwargs, **other.kwargs,
+        &self.class.merge_block(block, other.block)
+      )
+    end
+
+    # @!visibility private
     # @param build_strategy [:build, :build_stubbed, :create, :attributes_for, :with]
     # @param ancestors [Array<Array(AssocInfo, Object)>, nil]
     def instantiate(build_strategy, ancestors = nil)
@@ -48,6 +71,17 @@ module FactoryBot
       end
 
       result
+    end
+
+    # @!visibility private
+    def self.merge_block(first, second)
+      return first unless second
+      return second unless first
+
+      lambda do |*args|
+        first.call(*args)
+        second.call(*args)
+      end
     end
   end
 end

@@ -15,10 +15,17 @@ module FactoryBot
 
       VARIATIONS.each do |variation, build_strategies|
         build_strategies.each do |build_strategy, method_name|
-          define_method(method_name) do |factory_name = nil, *args, **kwargs, &block|
-            return Proxy.new(self, __method__) unless factory_name
+          define_method(method_name) do |factory = nil, *args, **kwargs, &block|
+            return Proxy.new(self, __method__) unless factory
 
-            With.new(variation, factory_name, *args, **kwargs, &block).instantiate(build_strategy)
+            with =
+              if factory.is_a? With
+                factory.merge(With.new(variation, factory.factory_name, *args, **kwargs, &block))
+              else
+                With.new(variation, factory, *args, **kwargs, &block)
+              end
+
+            with.instantiate(build_strategy)
           end
         end
       end
