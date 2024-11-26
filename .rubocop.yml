@@ -11,6 +11,9 @@ AllCops:
 FactoryBot:
   Enabled: true
 
+Style/NumberedParametersLimit:
+  Max: 2
+
 Style/StringLiterals:
   EnforcedStyle: double_quotes
 
@@ -31,4 +34,16 @@ RSpec/NamedSubject:
   Enabled: false
 
 RSpec/ExampleLength:
+  Enabled: false
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+RSpec/MultipleExpectations:
+  Enabled: false
+
+RSpec/NestedGroups:
   Enabled: false

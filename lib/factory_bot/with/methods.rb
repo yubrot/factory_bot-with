@@ -6,12 +6,20 @@ module FactoryBot
     module Methods
       include FactoryBot::Syntax::Methods
 
-      BUILD_STRATEGY_METHODS = %i[build build_stubbed create attributes_for].freeze
+      BUILD_STRATEGIES = %i[build build_stubbed create attributes_for with].freeze
+
+      BUILD_STRATEGIES.each do |build_strategy|
+        define_method(build_strategy) do |factory_name = nil, *args, **kwargs, &block|
+          return Proxy.new(self, __method__) unless factory_name
+
+          With.new(factory_name, *args, **kwargs, &block).instantiate(build_strategy)
+        end
+      end
+
       BUILD_STRATEGY_PAIR_METHODS = %i[build_pair build_stubbed_pair create_pair attributes_for_pair].freeze
       BUILD_STRATEGY_LIST_METHODS = %i[build_list build_stubbed_list create_list attributes_for_list].freeze
-      METHODS = (BUILD_STRATEGY_METHODS + BUILD_STRATEGY_PAIR_METHODS + BUILD_STRATEGY_LIST_METHODS).freeze
 
-      METHODS.each do |method_name|
+      (BUILD_STRATEGY_PAIR_METHODS + BUILD_STRATEGY_LIST_METHODS).each do |method_name|
         define_method(method_name) do |factory_name = nil, *args, **kwargs, &block|
           return Proxy.new(self, __method__) unless factory_name
 

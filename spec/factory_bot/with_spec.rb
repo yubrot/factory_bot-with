@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe FactoryBot::With do
-  skip "TODO"
+  describe "#instantiate" do
+    it "is tested in FactoryBot::With::Methods spec"
+  end
 end
