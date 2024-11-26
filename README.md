@@ -1,38 +1,181 @@
 # FactoryBot::With
 
-TODO: Delete this and the text below, and describe your gem
+FactoryBot::With is a FactoryBot extension that wraps `FactoryBot::Syntax::Methods` to make it a little easier to use.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/factory_bot/with`. To experiment with that code, run `bin/console` for an interactive prompt.
+For example, with these factories:
+
+```ruby
+FactoryBot.define do
+  factory(:blog)
+  factory(:article) { blog }
+  factory(:comment) { article }
+end
+```
+
+Instead of writing like this:
+
+```ruby
+create(:blog) do |blog|
+  create(:article, blog:) { |article| create(:comment, article:) }
+  create(:article, blog:) { |article| create_list(:comment, 3, article:) }
+end
+```
+
+FactoryBot::With allows you to write:
+
+```ruby
+create.blog(
+  with.article(with.comment),
+  with.article(with_list.comment(3)),
+)
+```
 
 ## Installation
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+On your Gemfile:
 
-Install the gem and add to the application's Gemfile by executing:
-
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```ruby
+gem "factory_bot-with"
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+Then, instead of including `FactoryBot::Syntax::Methods`, include `FactoryBot::With::Methods`:
 
-```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```ruby
+# RSpec example
+RSpec.configure do |config|
+  # ...
+  config.include FactoryBot::With::Methods
+  # ...
+end
 ```
 
-## Usage
+## What differs from `FactoryBot::Syntax::Methods`?
 
-TODO: Write usage instructions here
+### Method style syntax
+
+FactoryBot::With overrides the behavior when factory methods are called without arguments.
+
+```ruby
+create(:foo, ...)  # behaves in the same way as FactoryBot.create
+create             # returns a Proxy (an intermadiate) object
+create.foo(...)    # is equivalent to create(:foo, ...)
+```
+
+This applies to other factory methods such as `build_stubbed`, `create_list`, `with` (described later), etc. as well.
+
+```ruby
+build_stubbed.foo(...)
+create_list.foo(10, ...)
+```
+
+### `with`, `with_pair`, and `with_list` operator
+
+FactoryBot::With provides a new operator `with` (and its family).
+
+```ruby
+with(:factory_name, ...)
+with_pair(:factory_name, ...)
+with_list(:factory_name, number_of_items, ...)
+```
+
+The result of this operator (`With` instance) can be passed as an argument to factory methods such as `build` or `create`, which can then create additional objects following the result of the factory.
+
+```ruby
+create.blog(with.article)
+# is equivalent to ...
+blog = create.blog
+create.article(blog:)
+```
+
+The overridden factory methods collect these `with` arguments before delegating object creation to the actual factory methods.
+
+<details>
+<summary>Automatic association resolution</summary>
+
+`with` automatically resolves references to ancestor objects based on the definition of the FactoryBot associations.
+
+This automatic resolution takes into account any [traits](https://thoughtbot.github.io/factory_bot/traits/summary.html) in the factories, [aliases](https://thoughtbot.github.io/factory_bot/sequences/aliases.html) in the factories, and [factory specifications](https://thoughtbot.github.io/factory_bot/associations/specifying-the-factory.html) in the associations.
+
+```ruby
+FactoryBot.define do
+  factory(:video)
+  factory(:photo)
+  factory(:tag) do
+    trait(:for_video) { taggable factory: :video }
+    trait(:for_photo) { taggable factory: :photo }
+  end
+end
+
+create.video(with.tag(text: "latest"))  # resolved as taggable: video
+create.photo(with.tag(text: "latest"))  # ...
+```
+
+Due to technical limitations, [inline associations](https://thoughtbot.github.io/factory_bot/associations/inline-definition.html) cannot be resolved.
+
+</details>
+
+<details>
+<summary>Autocomplete fully-qualified factory name</summary>
+
+For a factory name that is prefixed by the parent object's factory name, the prefix can be omitted.
+
+```ruby
+FactoryBot.define do
+  factory(:blog)
+  factory(:blog_article) { blog }
+end
+
+create.blog(with.article) # autocomplete to :blog_article
+```
+
+</details>
+
+### `with` as a template
+
+`with` can also be used stand-alone. It works as a template for factory method calls.
+
+Instead of writing:
+
+```ruby
+let(:story) { create(:story, *story_args, **story_kwargs) }
+let(:story_args) { [] }
+let(:story_kwargs) { {} }
+
+context "when published more than one year ago" do
+  let(:story_args) { [*super(), :published] }
+  let(:story_kwargs) { { **super(), start_at: 2.year.ago } }
+
+  # ...
+end
+```
+
+You can write like this:
+
+```ruby
+# Factory methods accept a With instance as a first argument:
+let(:story) { create(story_template) }
+let(:story_template) { with.story }
+
+context "when published more than one year ago" do
+  let(:story_template) { with(super(), :published, start_at: 2.year.ago) }
+
+  # ...
+end
+```
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```bash
+git clone https://github.com/yubrot/factory_bot-with
+cd gems/factory_bot-with
+bin/setup
+bundle exec rake --tasks
+bundle exec rake
+```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/factory_bot-with. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/factory_bot-with/blob/main/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/yubrot/factory_bot-with. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/yubrot/factory_bot-with/blob/main/CODE_OF_CONDUCT.md).
 
 ## License
 
@@ -40,4 +183,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the FactoryBot::With project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/factory_bot-with/blob/main/CODE_OF_CONDUCT.md).
+Everyone interacting in the FactoryBot::With project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/yubrot/factory_bot-with/blob/main/CODE_OF_CONDUCT.md).
