@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe FactoryBot::With::AssocInfo do
-  describe "#perform_automatic_resolution" do
+  describe "#perform_automatic_association_resolution and .autocomplete_fully_qualified_factory_name" do
     it "is tested in FactoryBot::With::Methods spec"
   end
 

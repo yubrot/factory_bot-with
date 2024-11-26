@@ -9,11 +9,10 @@ require_relative "with/methods"
 module FactoryBot
   # An intermediate state for `with` operator.
   class With
-    attr_reader :factory_name, :factory_assoc_info, :withes, :args, :kwargs, :block
+    attr_reader :factory_name, :withes, :args, :kwargs, :block
 
     def initialize(factory_name, *args, **kwargs, &block)
       @factory_name = factory_name
-      @factory_assoc_info = AssocInfo.get(factory_name)
       @withes, @args = args.partition { _1.is_a? self.class }
       @kwargs = kwargs
       @block = block
@@ -21,19 +20,26 @@ module FactoryBot
 
     # @!visibility private
     # @param build_strategy [:build, :build_stubbed, :create, :attributes_for, :with]
-    # @param ancestors [Array<(AssocInfo, Object)>, nil]
+    # @param ancestors [Array<Array(AssocInfo, Object)>, nil]
     def instantiate(build_strategy, ancestors = nil)
       return self if build_strategy == :with
 
-      kwargs = self.kwargs
-      if ancestors
-        kwargs = kwargs.dup
-        factory_assoc_info.perform_automatic_resolution(ancestors, kwargs)
-      end
+      factory_name, kwargs =
+        if ancestors
+          kwargs = @kwargs.dup
+          factory_name = AssocInfo.autocomplete_fully_qualified_factory_name(ancestors, @factory_name)
+          AssocInfo.get(factory_name).perform_automatic_association_resolution(ancestors, kwargs)
+          [factory_name, kwargs]
+        else
+          [@factory_name, @kwargs]
+        end
+
       parent = FactoryBot.__send__(build_strategy, factory_name, *args, **kwargs, &block)
 
-      ancestors = [[factory_assoc_info, parent], *ancestors || []]
-      withes.each { _1.instantiate(build_strategy, ancestors) }
+      unless withes.empty?
+        ancestors = [[AssocInfo.get(@factory_name), parent], *ancestors || []]
+        withes.each { _1.instantiate(build_strategy, ancestors) }
+      end
 
       parent
     end

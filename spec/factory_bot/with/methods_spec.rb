@@ -97,6 +97,24 @@ RSpec.describe FactoryBot::With::Methods do
         end
       end
     end
+
+    describe "autocomplete fully-qualified factory name" do
+      subject { build.customer(with.profile(name: "Hello"), id: 1) }
+
+      it "autocompletes a factory name from ancestors" do
+        expect(subject).to eq Test::Customer.new(id: 1)
+        expect(objects[1]).to eq Test::CustomerProfile.new(customer: subject, name: "Hello")
+      end
+
+      context "with factories that have multiple factory names" do
+        subject { build.premium_customer(with.profile(name: "Hello"), id: 2) }
+
+        it "respects every factory names" do
+          expect(subject).to eq Test::Customer.new(id: 2, plan: "premium")
+          expect(objects[1]).to eq Test::CustomerProfile.new(customer: subject, name: "Hello")
+        end
+      end
+    end
   end
 
   describe "#with" do

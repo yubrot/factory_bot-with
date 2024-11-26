@@ -21,17 +21,17 @@ module FactoryBot
         @map = map
       end
 
-      # @param ancestors [Array<(AssocInfo, Object)>]
+      # @param ancestors [Array<Array(AssocInfo, Object)>]
       # @param dest [{Symbol => Object}]
-      def perform_automatic_resolution(ancestors, dest)
+      def perform_automatic_association_resolution(ancestors, dest)
         priorities = {}
         map.each do |factory_name, attribute|
           # skip if this attribute is explicitly specified
           next if dest.member?(attribute) && !priorities.member?(attribute)
 
           # closer ancestors have higher (lower integer) priority
-          ancestor, priority = ancestors.each_with_index.find do |ancestor, _|
-            ancestor[0].factory_names.include?(factory_name)
+          ancestor, priority = ancestors.each_with_index.find do |(ancestor_assoc_info, _), _|
+            ancestor_assoc_info.factory_names.include?(factory_name)
           end
           next if !ancestor || priorities.fetch(attribute, Float::INFINITY) <= priority
 
@@ -41,6 +41,28 @@ module FactoryBot
       end
 
       class << self
+        # @param ancestors [Array<Array(AssocInfo, Object)>]
+        # @param partial_factory_name [Symbol]
+        # @return [Symbol]
+        def autocomplete_fully_qualified_factory_name(ancestors, partial_factory_name)
+          return partial_factory_name if exists?(partial_factory_name)
+
+          ancestors.each do |(ancestor_assoc_info, _)|
+            ancestor_assoc_info.factory_names.each do |ancestor_factory_name|
+              factory_name = :"#{ancestor_factory_name}_#{partial_factory_name}"
+              return factory_name if exists?(factory_name)
+            end
+          end
+
+          raise ArgumentError, "FactoryBot factory #{partial_factory_name} is not defined"
+        end
+
+        # @param factory_name [Symbol]
+        # @return [Boolean]
+        def exists?(factory_name)
+          !!cache.fetch(factory_name) { FactoryBot.factories.registered?(factory_name) }
+        end
+
         # @param factory_name [Symbol]
         # @return [AssocInfo]
         def get(factory_name)
