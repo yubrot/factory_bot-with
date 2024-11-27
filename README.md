@@ -1,5 +1,8 @@
 # FactoryBot::With
 
+[![](https://badge.fury.io/rb/factory_bot-with.svg)](https://badge.fury.io/rb/factory_bot-with)
+[![](https://github.com/yubrot/factory_bot-with/actions/workflows/main.yml/badge.svg)](https://github.com/yubrot/factory_bot-with/actions/workflows/main.yml)
+
 FactoryBot::With is a FactoryBot extension that wraps `FactoryBot::Syntax::Methods` to make it a little easier to use.
 
 For example, with these factories:
