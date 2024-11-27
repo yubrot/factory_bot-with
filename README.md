@@ -71,6 +71,16 @@ build_stubbed.foo(...)
 create_list.foo(10, ...)
 ```
 
+### Smarter interpretation of positional arguments
+
+FactoryBot::With adjusts the behavior of factory methods to accept `Hash`, `Array`, and falsy values (`false` or `nil`) as positional arguments.
+
+```ruby
+create.foo({ title: "Recipe" }, is_new && %i[latest hot])
+#=> create(:foo, :latest, :hot, title: "Recipe")  if is_new
+#   create(:foo, title: "Recipe")                 otherwise
+```
+
 ### `with`, `with_pair`, and `with_list` operator
 
 FactoryBot::With provides a new operator `with` (and its family).

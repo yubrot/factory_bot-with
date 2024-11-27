@@ -18,14 +18,7 @@ module FactoryBot
           define_method(method_name) do |factory = nil, *args, **kwargs, &block|
             return Proxy.new(self, __method__) unless factory
 
-            with =
-              if factory.is_a? With
-                factory.merge(With.new(variation, factory.factory_name, *args, **kwargs, &block))
-              else
-                With.new(variation, factory, *args, **kwargs, &block)
-              end
-
-            with.instantiate(build_strategy)
+            With.build(variation, factory, *args, **kwargs, &block).instantiate(build_strategy)
           end
         end
       end

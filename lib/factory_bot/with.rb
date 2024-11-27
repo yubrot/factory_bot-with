@@ -15,25 +15,32 @@ module FactoryBot
     attr_reader :factory_name
     # @return [Array<With>]
     attr_reader :withes
-    # @return [Array<Object>]
-    attr_reader :args
+    # @return [Array<Numeric, Symbol>] Numeric is also treated as a trait for convenience
+    attr_reader :traits
     # @return [{Symbol => Object}]
-    attr_reader :kwargs
+    attr_reader :attrs
     # @return [Proc, nil]
     attr_reader :block
 
     # @!visibility private
-    def initialize(variation, factory_name, *args, **kwargs, &block)
+    def initialize(variation, factory_name, withes: [], traits: [], attrs: {}, &block)
+      raise ArgumentError unless %i[unit pair list].include? variation
+      raise TypeError unless factory_name.is_a? Symbol
+      raise TypeError unless withes.is_a?(Array) && withes.all? { _1.is_a? self.class }
+      raise TypeError unless traits.is_a?(Array) && traits.all? { _1.is_a?(Symbol) || _1.is_a?(Numeric) }
+      raise TypeError unless attrs.is_a?(Hash) && attrs.keys.all? { _1.is_a? Symbol }
+
       @variation = variation
       @factory_name = factory_name
-      @withes, @args = args.partition { _1.is_a? self.class }
-      @kwargs = kwargs
+      @withes = withes
+      @traits = traits
+      @attrs = attrs
       @block = block
     end
 
     # @!visibility private
     # @return [Boolean]
-    def plain? = withes.empty? && args.empty? && kwargs.empty? && block.nil?
+    def plain? = withes.empty? && traits.empty? && attrs.empty? && block.nil?
 
     # @!visibility private
     # @param other [With]
@@ -49,8 +56,9 @@ module FactoryBot
       self.class.new(
         variation,
         factory_name,
-        *args, *other.args, *withes, *other.withes,
-        **kwargs, **other.kwargs,
+        withes: [*withes, *other.withes],
+        traits: [*traits, *other.traits],
+        attrs: { **attrs, **other.attrs },
         &self.class.merge_block(block, other.block)
       )
     end
@@ -63,16 +71,16 @@ module FactoryBot
       return self if build_strategy == :with
 
       factory_bot_method = Methods::VARIATIONS[variation][build_strategy]
-      factory_name, kwargs =
+      factory_name, attrs =
         if ancestors
-          kwargs = @kwargs.dup
+          attrs = @attrs.dup
           factory_name = AssocInfo.autocomplete_fully_qualified_factory_name(ancestors, @factory_name)
-          AssocInfo.get(factory_name).perform_automatic_association_resolution(ancestors, kwargs)
-          [factory_name, kwargs]
+          AssocInfo.get(factory_name).perform_automatic_association_resolution(ancestors, attrs)
+          [factory_name, attrs]
         else
-          [@factory_name, @kwargs]
+          [@factory_name, @attrs]
         end
-      result = FactoryBot.__send__(factory_bot_method, factory_name, *args, **kwargs, &block)
+      result = FactoryBot.__send__(factory_bot_method, factory_name, *traits, **attrs, &block)
 
       unless withes.empty?
         parents = variation == :unit ? [result] : result
@@ -86,17 +94,52 @@ module FactoryBot
       result
     end
 
-    # @!visibility private
-    # @param first [Proc, nil]
-    # @param second [Proc, nil]
-    # @return [Proc, nil]
-    def self.merge_block(first, second)
-      return first unless second
-      return second unless first
+    class << self
+      # @!visibility private
+      # @param variation [:unit, :pair, :list]
+      # @param factory [Symbol, With]
+      # @param args [Array<Object>]
+      # @param kwargs [{Symbol => Object}]
+      def build(variation, factory, *, **, &)
+        return factory.merge(build(variation, factory.factory_name, *, **, &)) if factory.is_a? self
 
-      lambda do |*args|
-        first.call(*args)
-        second.call(*args)
+        with = new(variation, factory, &)
+        insert_args!(with, *)
+        with.attrs.merge!(**)
+        with
+      end
+
+      def insert_args!(with, *args)
+        args.each do |arg|
+          case arg
+          when self
+            with.withes << arg
+          when Symbol, Numeric
+            with.traits << arg
+          when Array
+            insert_args!(with, *arg)
+          when Hash
+            with.attrs.merge!(arg)
+          when false, nil
+            # Ignored. This behavior is useful for conditional arguments like `is_premium && :premium`
+          else
+            raise ArgumentError, "Unsupported type for factory argument: #{arg}"
+          end
+        end
+      end
+
+      # @!visibility private
+      # @param first [Proc, nil]
+      # @param second [Proc, nil]
+      # @return [Proc, nil]
+      def merge_block(first, second)
+        return first unless second
+        return second unless first
+
+        lambda do |*args|
+          first.call(*args)
+          second.call(*args)
+        end
       end
     end
   end

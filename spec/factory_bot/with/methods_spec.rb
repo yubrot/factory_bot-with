@@ -343,9 +343,9 @@ RSpec.describe FactoryBot::With::Methods do
       expect(subject).to have_attributes(
         variation: :unit,
         factory_name: :author,
-        withes: [have_attributes(factory_name: :post, args: [:world])],
-        args: [:hello],
-        kwargs: { foo: "bar" },
+        withes: [have_attributes(factory_name: :post, traits: [:world])],
+        traits: [:hello],
+        attrs: { foo: "bar" },
         block: nil,
       )
     end
