@@ -7,9 +7,20 @@ require_relative "with/assoc_info"
 require_relative "with/methods"
 
 module FactoryBot
-  # An intermediate state for `with` operator.
+  # An intermediate state for <code>with</code> operator.
   class With
-    attr_reader :variation, :factory_name, :withes, :args, :kwargs, :block
+    # @return [:unit, :pair, :list]
+    attr_reader :variation
+    # @return [Symbol]
+    attr_reader :factory_name
+    # @return [Array<With>]
+    attr_reader :withes
+    # @return [Array<Object>]
+    attr_reader :args
+    # @return [{Symbol => Object}]
+    attr_reader :kwargs
+    # @return [Proc, nil]
+    attr_reader :block
 
     # @!visibility private
     def initialize(variation, factory_name, *args, **kwargs, &block)
@@ -21,6 +32,7 @@ module FactoryBot
     end
 
     # @!visibility private
+    # @return [Boolean]
     def plain? = withes.empty? && args.empty? && kwargs.empty? && block.nil?
 
     # @!visibility private
@@ -46,6 +58,7 @@ module FactoryBot
     # @!visibility private
     # @param build_strategy [:build, :build_stubbed, :create, :attributes_for, :with]
     # @param ancestors [Array<Array(AssocInfo, Object)>, nil]
+    # @return [Object]
     def instantiate(build_strategy, ancestors = nil)
       return self if build_strategy == :with
 
@@ -65,8 +78,8 @@ module FactoryBot
         parents = variation == :unit ? [result] : result
         assoc_info = AssocInfo.get(@factory_name)
         parents.each do |parent|
-          ancestors_for_child = [[assoc_info, parent], *ancestors || []]
-          withes.each { _1.instantiate(build_strategy, ancestors_for_child) }
+          ancestors_for_children = [[assoc_info, parent], *ancestors || []]
+          withes.each { _1.instantiate(build_strategy, ancestors_for_children) }
         end
       end
 
@@ -74,6 +87,9 @@ module FactoryBot
     end
 
     # @!visibility private
+    # @param first [Proc, nil]
+    # @param second [Proc, nil]
+    # @return [Proc, nil]
     def self.merge_block(first, second)
       return first unless second
       return second unless first

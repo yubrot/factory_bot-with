@@ -9,6 +9,7 @@ module FactoryBot
       # @return [{Symbol => Symbol}] a map from factory names to association names
       attr_reader :map
 
+      # @!visibility private
       def initialize(factory_names, map)
         unless factory_names.is_a?(Set) && factory_names.all? { _1.is_a?(Symbol) }
           raise ArgumentError, "factory_names must be a Set of Symbols"
