@@ -11,12 +11,10 @@ RSpec.describe FactoryBot::With::Methods do
   end
 
   describe "#build" do
-    context "when it is called with a factory name" do
-      subject { build(:user, name: "John") }
+    subject { build(:user, name: "John") }
 
-      it "works the same way as FactoryBot.build" do
-        expect(subject).to eq Test::User.new(name: "John")
-      end
+    it "works the same way as FactoryBot.build" do
+      expect(subject).to eq Test::User.new(name: "John")
     end
 
     context "when it is called without a factory name" do
@@ -120,13 +118,14 @@ RSpec.describe FactoryBot::With::Methods do
     end
 
     describe "autocomplete fully-qualified factory name" do
-      subject { build.customer(with.profile(name: "Hello"), id: 1) }
+      subject { build.customer(with.profile(with.user, name: "Hello"), id: 1) }
 
       it "autocompletes a factory name from ancestors" do
         expect(subject).to eq objects[0]
         expect(objects).to eq [
           Test::Customer.new(id: 1),
           Test::CustomerProfile.new(customer: subject, name: "Hello"),
+          Test::User.new,
         ]
       end
 
@@ -143,7 +142,7 @@ RSpec.describe FactoryBot::With::Methods do
       end
     end
 
-    describe "as a template" do
+    describe "use #with as a template" do
       subject { build(record_template, title: "Overriden title") }
 
       let(:record_template) { with.record(:example) }

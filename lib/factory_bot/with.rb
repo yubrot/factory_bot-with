@@ -84,7 +84,7 @@ module FactoryBot
 
       unless withes.empty?
         parents = variation == :unit ? [result] : result
-        assoc_info = AssocInfo.get(@factory_name)
+        assoc_info = AssocInfo.get(factory_name)
         parents.each do |parent|
           ancestors_for_children = [[assoc_info, parent], *ancestors || []]
           withes.each { _1.instantiate(build_strategy, ancestors_for_children) }
