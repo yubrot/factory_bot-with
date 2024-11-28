@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.2.0] - 2024-11-29
+
 - Fixed: Fixed an incorrect factory resolution problem after factory names autocompletion
 - Added: Smarter interpretation of positional arguments passed to factory methods
 
