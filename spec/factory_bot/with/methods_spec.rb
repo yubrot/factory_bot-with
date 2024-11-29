@@ -57,7 +57,7 @@ RSpec.describe FactoryBot::With::Methods do
         expect(subject).to eq objects[0]
         expect(objects).to eq [
           Test::User.new(name: "John"),
-          Test::Account.new(user: subject),
+          Test::Account.new(user: objects[0]),
         ]
       end
 
@@ -81,7 +81,7 @@ RSpec.describe FactoryBot::With::Methods do
           expect(objects[0..3]).to eq [
             Test::User.new(name: "A"),
             Test::User.new(name: "B"),
-            Test::Post.new(author: subject),
+            Test::Post.new(author: objects[0]),
             Test::Comment.new(commenter: Test::User.new),
           ]
           # We use `objects.last` instead of `objects[4]` here, since the behavior of `association :commenter` is
@@ -97,9 +97,9 @@ RSpec.describe FactoryBot::With::Methods do
           expect(subject).to eq objects[0]
           expect(objects).to eq [
             Test::User.new,
-            Test::Post.new(title: "Hello", author: subject),
-            Test::Post.new(title: "World", author: subject),
-            Test::Account.new(user: subject),
+            Test::Post.new(title: "Hello", author: objects[0]),
+            Test::Post.new(title: "World", author: objects[0]),
+            Test::Account.new(user: objects[0]),
           ]
         end
       end
@@ -111,7 +111,7 @@ RSpec.describe FactoryBot::With::Methods do
           expect(subject).to eq objects[0]
           expect(objects).to eq [
             Test::Photo.new(title: "P"),
-            Test::Tag.new(taggable: subject),
+            Test::Tag.new(taggable: objects[0]),
           ]
         end
       end
@@ -124,7 +124,7 @@ RSpec.describe FactoryBot::With::Methods do
         expect(subject).to eq objects[0]
         expect(objects).to eq [
           Test::Customer.new(id: 1),
-          Test::CustomerProfile.new(customer: subject, name: "Hello"),
+          Test::CustomerProfile.new(customer: objects[0], name: "Hello"),
           Test::User.new,
         ]
       end
@@ -136,7 +136,19 @@ RSpec.describe FactoryBot::With::Methods do
           expect(subject).to eq objects[0]
           expect(objects).to eq [
             Test::Customer.new(id: 2, plan: "premium"),
-            Test::CustomerProfile.new(customer: subject, name: "Hello"),
+            Test::CustomerProfile.new(customer: objects[0], name: "Hello"),
+          ]
+        end
+      end
+
+      context "when there are multiple candidates for autocompletion" do
+        subject { build.customer(with.information) }
+
+        it "prefers a factory with an autocompleted name" do
+          expect(subject).to eq objects[0]
+          expect(objects).to eq [
+            Test::Customer.new,
+            Test::CustomerInformation.new(customer: objects[0]),
           ]
         end
       end
@@ -216,8 +228,8 @@ RSpec.describe FactoryBot::With::Methods do
         base = subject.index
         expect(objects).to eq [
           Test::Node.new(index: base),
-          Test::Node.new(index: base + 1, parent: subject),
-          Test::Node.new(index: base + 2, parent: subject),
+          Test::Node.new(index: base + 1, parent: objects[0]),
+          Test::Node.new(index: base + 2, parent: objects[0]),
         ]
       end
     end
@@ -281,10 +293,10 @@ RSpec.describe FactoryBot::With::Methods do
         base = subject.index
         expect(objects).to eq [
           Test::Node.new(index: base),
-          Test::Node.new(index: base + 1, parent: subject),
-          Test::Node.new(index: base + 2, parent: subject),
-          Test::Node.new(index: base + 3, parent: subject),
-          Test::Node.new(index: base + 4, parent: subject),
+          Test::Node.new(index: base + 1, parent: objects[0]),
+          Test::Node.new(index: base + 2, parent: objects[0]),
+          Test::Node.new(index: base + 3, parent: objects[0]),
+          Test::Node.new(index: base + 4, parent: objects[0]),
         ]
       end
     end

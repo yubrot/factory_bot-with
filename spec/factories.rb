@@ -32,12 +32,16 @@ module Test
   # TESTING autocomplete
   Customer = Struct.new(:id, :plan, keyword_init: true)
   CustomerProfile = Struct.new(:name, :customer, keyword_init: true)
+  CustomerInformation = Struct.new(:customer, keyword_init: true)
+  Information = Struct.new(:title, keyword_init: true)
 
   FactoryBot.define do
     factory(:customer, class: "Test::Customer") do
       factory(:premium_customer) { plan { "premium" } }
     end
     factory(:customer_profile, class: "Test::CustomerProfile") { customer }
+    factory(:customer_information, class: "Test::CustomerInformation") { customer }
+    factory(:information, class: "Test::Information")
   end
 
   # TESTING traits

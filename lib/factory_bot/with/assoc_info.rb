@@ -46,14 +46,16 @@ module FactoryBot
         # @param partial_factory_name [Symbol]
         # @return [Symbol]
         def autocomplete_fully_qualified_factory_name(ancestors, partial_factory_name)
-          return partial_factory_name if exists?(partial_factory_name)
-
           ancestors.each do |(ancestor_assoc_info, _)|
             ancestor_assoc_info.factory_names.each do |ancestor_factory_name|
               factory_name = :"#{ancestor_factory_name}_#{partial_factory_name}"
               return factory_name if exists?(factory_name)
             end
           end
+
+          # Attempt to resolve with the autocompleted names, then attempt to resolve with the original name.
+          # If we want to avoid autocompletion, we should be able to simply use a factory such as build or create.
+          return partial_factory_name if exists?(partial_factory_name)
 
           raise ArgumentError, "FactoryBot factory #{partial_factory_name} is not defined"
         end
