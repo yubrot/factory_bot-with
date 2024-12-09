@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.3.0] - 2024-12-09
+
 - Added: Added `FactoryBot::With.register_strategy` to support custom strategies
 
 ## [0.2.1] - 2024-11-29
