@@ -59,18 +59,48 @@ module FactoryBot
         withes: [*withes, *other.withes],
         traits: [*traits, *other.traits],
         attrs: { **attrs, **other.attrs },
-        &self.class.merge_block(block, other.block)
+        &lambda do |first, second|
+          return first unless second
+          return second unless first
+
+          lambda do |*args|
+            first.call(*args)
+            second.call(*args)
+          end
+        end.call(block, other.block)
       )
     end
 
     # @!visibility private
-    # @param build_strategy [:build, :build_stubbed, :create, :attributes_for, :with]
+    def extend!(*args)
+      args.each do |arg|
+        case arg
+        when self.class
+          withes << arg
+        when Symbol, Numeric
+          traits << arg
+        when Array
+          extend!(*arg)
+        when Hash
+          attrs.merge!(arg)
+        when false, nil
+          # Ignored. This behavior is useful for conditional arguments like `is_premium && :premium`
+        else
+          raise ArgumentError, "Unsupported type for factory argument: #{arg}"
+        end
+      end
+      self
+    end
+
+    # @!visibility private
+    # @param build_strategy [Symbol]
     # @param ancestors [Array<Array(AssocInfo, Object)>, nil]
     # @return [Object]
     def instantiate(build_strategy, ancestors = nil)
       return self if build_strategy == :with
 
-      factory_bot_method = Methods::VARIATIONS[variation][build_strategy]
+      factory_bot_method =
+        variation == :singular ? build_strategy : :"#{build_strategy}_#{variation}"
       factory_name, attrs =
         if ancestors
           attrs = @attrs.dup
@@ -103,44 +133,29 @@ module FactoryBot
       def build(variation, factory, *, **, &)
         return factory.merge(build(variation, factory.factory_name, *, **, &)) if factory.is_a? self
 
-        with = new(variation, factory, &)
-        insert_args!(with, *)
-        with.attrs.merge!(**)
-        with
+        new(variation, factory, &).extend!(*, { ** })
       end
 
-      def insert_args!(with, *args)
-        args.each do |arg|
-          case arg
-          when self
-            with.withes << arg
-          when Symbol, Numeric
-            with.traits << arg
-          when Array
-            insert_args!(with, *arg)
-          when Hash
-            with.attrs.merge!(arg)
-          when false, nil
-            # Ignored. This behavior is useful for conditional arguments like `is_premium && :premium`
-          else
-            raise ArgumentError, "Unsupported type for factory argument: #{arg}"
+      # If you want to use a custom strategy, call this along with <code>FactoryBot.register_strategy</code>.
+      # @param build_strategy [Symbol]
+      # @example
+      #   FactoryBot.register_strategy(:json, JsonStrategy)
+      #   FactoryBot::With.register_strategy(:json)
+      def register_strategy(build_strategy)
+        {
+          singular: build_strategy,
+          pair: :"#{build_strategy}_pair",
+          list: :"#{build_strategy}_list",
+        }.each do |variation, method_name|
+          Methods.define_method(method_name) do |factory = nil, *args, **kwargs, &block|
+            return Proxy.new(self, __method__) unless factory
+
+            With.build(variation, factory, *args, **kwargs, &block).instantiate(build_strategy)
           end
         end
       end
-
-      # @!visibility private
-      # @param first [Proc, nil]
-      # @param second [Proc, nil]
-      # @return [Proc, nil]
-      def merge_block(first, second)
-        return first unless second
-        return second unless first
-
-        lambda do |*args|
-          first.call(*args)
-          second.call(*args)
-        end
-      end
     end
+
+    %i[build build_stubbed create attributes_for with].each { register_strategy _1 }
   end
 end
