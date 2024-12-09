@@ -8,7 +8,7 @@ module FactoryBot
 
       BUILD_STRATEGIES = %i[build build_stubbed create attributes_for with].freeze
       VARIATIONS = {
-        unit: BUILD_STRATEGIES.to_h { [_1, _1] }.freeze,
+        singular: BUILD_STRATEGIES.to_h { [_1, _1] }.freeze,
         pair: BUILD_STRATEGIES.to_h { [_1, :"#{_1}_pair"] }.freeze,
         list: BUILD_STRATEGIES.to_h { [_1, :"#{_1}_list"] }.freeze,
       }.freeze

@@ -9,7 +9,7 @@ require_relative "with/methods"
 module FactoryBot
   # An intermediate state for <code>with</code> operator.
   class With
-    # @return [:unit, :pair, :list]
+    # @return [:singular, :pair, :list]
     attr_reader :variation
     # @return [Symbol]
     attr_reader :factory_name
@@ -24,7 +24,7 @@ module FactoryBot
 
     # @!visibility private
     def initialize(variation, factory_name, withes: [], traits: [], attrs: {}, &block)
-      raise ArgumentError unless %i[unit pair list].include? variation
+      raise ArgumentError unless %i[singular pair list].include? variation
       raise TypeError unless factory_name.is_a? Symbol
       raise TypeError unless withes.is_a?(Array) && withes.all? { _1.is_a? self.class }
       raise TypeError unless traits.is_a?(Array) && traits.all? { _1.is_a?(Symbol) || _1.is_a?(Numeric) }
@@ -83,7 +83,7 @@ module FactoryBot
       result = FactoryBot.__send__(factory_bot_method, factory_name, *traits, **attrs, &block)
 
       unless withes.empty?
-        parents = variation == :unit ? [result] : result
+        parents = variation == :singular ? [result] : result
         assoc_info = AssocInfo.get(factory_name)
         parents.each do |parent|
           ancestors_for_children = [[assoc_info, parent], *ancestors || []]
@@ -96,7 +96,7 @@ module FactoryBot
 
     class << self
       # @!visibility private
-      # @param variation [:unit, :pair, :list]
+      # @param variation [:singular, :pair, :list]
       # @param factory [Symbol, With]
       # @param args [Array<Object>]
       # @param kwargs [{Symbol => Object}]

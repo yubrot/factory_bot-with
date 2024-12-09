@@ -352,7 +352,7 @@ RSpec.describe FactoryBot::With::Methods do
 
     it "returns a With instance" do
       expect(subject).to have_attributes(
-        variation: :unit,
+        variation: :singular,
         factory_name: :author,
         withes: [have_attributes(factory_name: :post, traits: [:world])],
         traits: [:hello],

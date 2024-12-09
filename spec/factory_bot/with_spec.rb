@@ -5,13 +5,13 @@ RSpec.describe FactoryBot::With do
     subject { with.plain? }
 
     context "when the object has no withes, args, kwargs, and block" do
-      let(:with) { described_class.new(:unit, :user) }
+      let(:with) { described_class.new(:singular, :user) }
 
       it { is_expected.to be true }
     end
 
     context "when the object has withes, args, kwargs, or block" do
-      let(:with) { described_class.new(:unit, :user, traits: [:some_trait]) }
+      let(:with) { described_class.new(:singular, :user, traits: [:some_trait]) }
 
       it { is_expected.to be false }
     end
@@ -21,17 +21,17 @@ RSpec.describe FactoryBot::With do
     subject { first.merge(second) }
 
     let(:first) do
-      described_class.new(:unit, :user, withes: [post], traits: %i[a b], attrs: { x: 123 }) { _1 << :first }
+      described_class.new(:singular, :user, withes: [post], traits: %i[a b], attrs: { x: 123 }) { _1 << :first }
     end
     let(:second) do
-      described_class.new(:unit, :user, withes: [comment], traits: [:c], attrs: { y: 45, z: 67 }) { _1 << :second }
+      described_class.new(:singular, :user, withes: [comment], traits: [:c], attrs: { y: 45, z: 67 }) { _1 << :second }
     end
-    let(:post) { described_class.new(:unit, :post) }
-    let(:comment) { described_class.new(:unit, :comment) }
+    let(:post) { described_class.new(:singular, :post) }
+    let(:comment) { described_class.new(:singular, :comment) }
 
     it "creates a new With instance with merged withes, args, and block" do
       expect(subject).to have_attributes(
-        variation: :unit,
+        variation: :singular,
         factory_name: :user,
         withes: [post, comment],
         traits: %i[a b c],
@@ -49,14 +49,14 @@ RSpec.describe FactoryBot::With do
   end
 
   describe ".build (including .insert_args!)" do
-    subject { described_class.build(:unit, :user, *args, **kwargs) }
+    subject { described_class.build(:singular, :user, *args, **kwargs) }
 
     let(:args) { [] }
     let(:kwargs) { {} }
 
     context "with positional arguments of With instances or symbols" do
       let(:args) { [post, :hello] }
-      let(:post) { described_class.new(:unit, :post) }
+      let(:post) { described_class.new(:singular, :post) }
 
       it { is_expected.to have_attributes(withes: [post], traits: [:hello], attrs: {}) }
     end
