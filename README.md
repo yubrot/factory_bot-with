@@ -5,6 +5,8 @@
 
 FactoryBot::With is a FactoryBot extension that wraps `FactoryBot::Syntax::Methods` to make it a little easier to use.
 
+[FactoryBotにおける関連の扱いと、factory_bot-with gemを作った話 (Japanese)](https://zenn.dev/yubrot/articles/032447068e308e)
+
 For example, with these factories:
 
 ```ruby
