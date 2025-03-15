@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 - Fixed: Improved error message for incorrect factory usage
+- Added: Added `with` scope syntax for automatic association resolution
 
 ## [0.3.0] - 2024-12-09
 

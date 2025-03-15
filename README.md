@@ -5,7 +5,7 @@
 
 FactoryBot::With is a FactoryBot extension that wraps `FactoryBot::Syntax::Methods` to make it a little easier to use.
 
-[FactoryBotにおける関連の扱いと、factory_bot-with gemを作った話 (Japanese)](https://zenn.dev/yubrot/articles/032447068e308e)
+[FactoryBot における関連の扱いと、factory_bot-with gem を作った話 (Japanese)](https://zenn.dev/yubrot/articles/032447068e308e)
 
 For example, with these factories:
 
@@ -145,9 +145,11 @@ create.blog(with.article) # autocomplete to :blog_article
 
 </details>
 
+## Additional features
+
 ### `with` as a template
 
-`with` can also be used stand-alone. It works as a template for factory method calls.
+`with` can also be used stand-alone. Stand-alone `with` can be used in place of the factory name. It works as a template for factory method calls.
 
 Instead of writing:
 
@@ -175,6 +177,22 @@ context "when published more than one year ago" do
   let(:story_template) { with(super(), :published, start_at: 2.year.ago) }
 
   # ...
+end
+```
+
+### `with` scope for automatic association resolution
+
+By calling `with` without positional arguments, but with keyword arguments that define the relationship between factory names and objects, along with a block, `factory_bot-with` creates a scope where those objects become candidates for automatic association resolution.
+
+```ruby
+let(:blog) { create.blog }
+
+before do
+  with(blog:) do
+    # Just like when using create.blog, blog is automatically resolved when create.article is called
+    create.article(with.comment)
+    create.article(with_list.comment(3))
+  end
 end
 ```
 

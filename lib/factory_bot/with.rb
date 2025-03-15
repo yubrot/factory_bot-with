@@ -96,7 +96,7 @@ module FactoryBot
     # @param build_strategy [Symbol]
     # @param ancestors [Array<Array(AssocInfo, Object)>, nil]
     # @return [Object]
-    def instantiate(build_strategy, ancestors = nil)
+    def instantiate(build_strategy, ancestors = self.class.scoped_ancestors)
       return self if build_strategy == :with
 
       factory_bot_method =
@@ -148,18 +148,40 @@ module FactoryBot
           list: :"#{build_strategy}_list",
         }.each do |variation, method_name|
           Methods.define_method(method_name) do |factory = nil, *args, **kwargs, &block|
-            unless factory
-              if !args.empty? || !kwargs.empty? || block
-                raise ArgumentError, "#{__method__} must be called without arguments when no factory is given"
-              end
-
-              return Proxy.new(self, __method__)
+            if factory
+              # <__method__>(<factory_name>, ...)
+              With.build(variation, factory, *args, **kwargs, &block).instantiate(build_strategy)
+            elsif args.empty? && kwargs.empty? && !block
+              # <__method__>.<factory_name>(...)
+              Proxy.new(self, __method__)
+            elsif __method__ == :with && args.empty? && !kwargs.empty?
+              # with(<factory_name>: <object>, ...) { ... }
+              With.with_scoped_ancestors(kwargs, &block)
+            else
+              raise ArgumentError, "Invalid use of #{__method__}"
             end
-
-            With.build(variation, factory, *args, **kwargs, &block).instantiate(build_strategy)
           end
         end
       end
+
+      # @!visibility private
+      # @param objects [{Symbol => Object}]
+      def with_scoped_ancestors(objects)
+        return unless block_given?
+
+        tmp_scoped_ancestors = scoped_ancestors
+        Thread.current[:factory_bot_with_scoped_ancestors] = [
+          *objects.map { [AssocInfo.get(_1), _2] },
+          *tmp_scoped_ancestors || [],
+        ]
+        result = yield
+        Thread.current[:factory_bot_with_scoped_ancestors] = tmp_scoped_ancestors
+        result
+      end
+
+      # @!visibility private
+      # @return [Array<Array(AssocInfo, Object)>, nil]
+      def scoped_ancestors = Thread.current[:factory_bot_with_scoped_ancestors]
     end
 
     %i[build build_stubbed create attributes_for with].each { register_strategy _1 }

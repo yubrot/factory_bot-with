@@ -360,5 +360,53 @@ RSpec.describe FactoryBot::With::Methods do
         block: nil,
       )
     end
+
+    context "without factory name" do
+      subject { with(user:) { build.account } }
+
+      let(:user) { build.user(name: "John") }
+
+      it "works as association resolution candidates" do
+        expect(subject).to eq objects[1]
+        expect(objects).to eq [
+          Test::User.new(name: "John"),
+          Test::Account.new(user: objects[0]),
+        ]
+      end
+
+      context "with complex control-flow with Fibers" do
+        subject do
+          customers = [
+            build.customer(id: 1),
+            build.customer(id: 2),
+          ]
+          f = Fiber.new do
+            with(customer: customers[0]) do
+              build.profile(name: "A")
+              Fiber.yield
+              build.profile(name: "B")
+            end
+          end
+          with(customer: customers[1]) do
+            build.profile(name: "C")
+            f.resume
+            build.profile(name: "D")
+          end
+          f.resume
+        end
+
+        it "keeps lexical scope" do
+          subject
+          expect(objects).to eq [
+            Test::Customer.new(id: 1),
+            Test::Customer.new(id: 2),
+            Test::CustomerProfile.new(customer: objects[1], name: "C"),
+            Test::CustomerProfile.new(customer: objects[0], name: "A"),
+            Test::CustomerProfile.new(customer: objects[1], name: "D"),
+            Test::CustomerProfile.new(customer: objects[0], name: "B"),
+          ]
+        end
+      end
+    end
   end
 end
