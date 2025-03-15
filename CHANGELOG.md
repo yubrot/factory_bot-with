@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.4.0]
+
 - Fixed: Improved error message for incorrect factory usage
 - Added: Added `with` scope syntax for automatic association resolution
 
