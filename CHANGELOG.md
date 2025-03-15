@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Fixed: Improved error message for incorrect factory usage
+
 ## [0.3.0] - 2024-12-09
 
 - Added: Added `FactoryBot::With.register_strategy` to support custom strategies

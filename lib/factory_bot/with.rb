@@ -148,7 +148,13 @@ module FactoryBot
           list: :"#{build_strategy}_list",
         }.each do |variation, method_name|
           Methods.define_method(method_name) do |factory = nil, *args, **kwargs, &block|
-            return Proxy.new(self, __method__) unless factory
+            unless factory
+              if !args.empty? || !kwargs.empty? || block
+                raise ArgumentError, "#{__method__} must be called without arguments when no factory is given"
+              end
+
+              return Proxy.new(self, __method__)
+            end
 
             With.build(variation, factory, *args, **kwargs, &block).instantiate(build_strategy)
           end
