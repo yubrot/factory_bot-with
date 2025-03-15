@@ -154,7 +154,7 @@ Instead of writing:
 ```ruby
 let(:story) { create(:story, *story_args, **story_kwargs) }
 let(:story_args) { [] }
-let(:story_kwargs) { {} }
+let(:story_kwargs) { { category: "SF" } }
 
 context "when published more than one year ago" do
   let(:story_args) { [*super(), :published] }
@@ -169,7 +169,7 @@ You can write like this:
 ```ruby
 # Factory methods accept a With instance as a first argument:
 let(:story) { create(story_template) }
-let(:story_template) { with.story }
+let(:story_template) { with.story(category: "SF") }
 
 context "when published more than one year ago" do
   let(:story_template) { with(super(), :published, start_at: 2.year.ago) }
