@@ -62,7 +62,7 @@ FactoryBot::With overrides the behavior when factory methods are called without 
 
 ```ruby
 create(:foo, ...)  # behaves in the same way as FactoryBot.create
-create             # returns a Proxy (an intermadiate) object
+create             # returns a Proxy (an intermediate) object
 create.foo(...)    # is equivalent to create(:foo, ...)
 ```
 
@@ -182,14 +182,15 @@ end
 
 ### `with` scope for automatic association resolution
 
-By calling `with` without positional arguments, but with keyword arguments that define the relationship between factory names and objects, along with a block, `factory_bot-with` creates a scope where those objects become candidates for automatic association resolution.
+By calling `with` without positional arguments, but with keyword arguments that define the relationship between factory names and objects, along with a block, it creates a scope where those objects become candidates for automatic association resolution.
 
 ```ruby
 let(:blog) { create.blog }
 
 before do
   with(blog:) do
-    # Just like when using create.blog, blog is automatically resolved when create.article is called
+    # Just like when using `create.blog(with.article)`,
+    # `blog` is provided as a keyword argument automatically at each `create.article`
     create.article(with.comment)
     create.article(with_list.comment(3))
   end
