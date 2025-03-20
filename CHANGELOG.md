@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 - Added: When using `with` scope syntax, blocks can now take given objects as arguments
+- **Changed**: Passing blocks to factory methods behaves same as `with` scope syntax
 
 ## [0.4.0]
 

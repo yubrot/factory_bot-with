@@ -63,9 +63,9 @@ module FactoryBot
           return first unless second
           return second unless first
 
-          lambda do |*args|
-            first.call(*args)
-            second.call(*args)
+          proc do |arg|
+            first.call(arg)
+            second.call(arg)
           end
         end.call(block, other.block)
       )
@@ -110,14 +110,16 @@ module FactoryBot
         else
           [@factory_name, @attrs]
         end
-      result = FactoryBot.__send__(factory_bot_method, factory_name, *traits, **attrs, &block)
+      result = FactoryBot.__send__(factory_bot_method, factory_name, *traits, **attrs)
 
-      unless withes.empty?
-        parents = variation == :singular ? [result] : result
+      if block || !withes.empty?
         assoc_info = AssocInfo.get(factory_name)
+        parents = variation == :singular ? [result] : result
         parents.each do |parent|
           ancestors_for_children = [[assoc_info, parent], *ancestors || []]
           withes.each { _1.instantiate(build_strategy, ancestors_for_children) }
+          # We call the block for each parent object. This is an incompatible behavior with FactoryBot!
+          self.class.with_scoped_ancestors(ancestors_for_children) { block.call(result) } if block
         end
       end
 
@@ -156,7 +158,8 @@ module FactoryBot
               Proxy.new(self, __method__)
             elsif __method__ == :with && args.empty? && !kwargs.empty?
               # with(<factory_name>: <object>, ...) { ... }
-              With.with_scoped_ancestors(kwargs, &block)
+              ancestors = kwargs.map { [AssocInfo.get(_1), _2] }
+              With.with_scoped_ancestors(ancestors) { With.yield_with_objects(kwargs, &block) }
             else
               raise ArgumentError, "Invalid use of #{__method__}"
             end
@@ -165,16 +168,11 @@ module FactoryBot
       end
 
       # @!visibility private
-      # @param objects [{Symbol => Object}]
-      def with_scoped_ancestors(objects, &)
-        return unless block_given?
-
+      # @param ancestors [Array<Array(AssocInfo, Object)>]
+      def with_scoped_ancestors(ancestors, &)
         tmp_scoped_ancestors = scoped_ancestors
-        Thread.current[:factory_bot_with_scoped_ancestors] = [
-          *objects.map { [AssocInfo.get(_1), _2] },
-          *tmp_scoped_ancestors || [],
-        ]
-        result = yield_with_objects(objects, &)
+        Thread.current[:factory_bot_with_scoped_ancestors] = [*ancestors, *tmp_scoped_ancestors || []]
+        result = yield
         Thread.current[:factory_bot_with_scoped_ancestors] = tmp_scoped_ancestors
         result
       end
@@ -182,8 +180,6 @@ module FactoryBot
       # @!visibility private
       # @return [Array<Array(AssocInfo, Object)>, nil]
       def scoped_ancestors = Thread.current[:factory_bot_with_scoped_ancestors]
-
-      private
 
       def yield_with_objects(objects, &block)
         params = block.parameters

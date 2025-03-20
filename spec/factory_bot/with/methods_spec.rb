@@ -154,6 +154,40 @@ RSpec.describe FactoryBot::With::Methods do
       end
     end
 
+    describe "passing a block to factory methods" do
+      subject do
+        build.customer(id: 1) { build.profile(name: "Kog") }
+        # or as usual FactoryBot
+        build.customer(id: 2) { |c| build.customer_profile(name: "Kei", customer: c) }
+      end
+
+      it "creates a scope for association resolution and calls the block with created objects" do
+        subject
+        expect(objects).to eq [
+          Test::Customer.new(id: 1),
+          Test::CustomerProfile.new(customer: objects[0], name: "Kog"),
+          Test::Customer.new(id: 2),
+          Test::CustomerProfile.new(customer: objects[2], name: "Kei"),
+        ]
+      end
+
+      context "when passing a block to list factory methods" do
+        subject { build_list.node(3) { build.node } }
+
+        it "calls the block for each created object (incompatible with FactoryBot)" do
+          base = subject[0].index
+          expect(objects).to eq [
+            Test::Node.new(index: base),
+            Test::Node.new(index: base + 1),
+            Test::Node.new(index: base + 2),
+            Test::Node.new(index: base + 3, parent: objects[0]),
+            Test::Node.new(index: base + 4, parent: objects[1]),
+            Test::Node.new(index: base + 5, parent: objects[2]),
+          ]
+        end
+      end
+    end
+
     describe "use #with as a template" do
       subject { build(record_template, title: "Overriden title") }
 

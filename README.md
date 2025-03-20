@@ -180,7 +180,7 @@ context "when published more than one year ago" do
 end
 ```
 
-### `with` scope for automatic association resolution
+### `with` scope syntax for automatic association resolution
 
 By calling `with` without positional arguments, but with keyword arguments that define the relationship between factory names and objects, along with a block, it creates a scope where those objects become candidates for automatic association resolution.
 
@@ -196,6 +196,17 @@ before do
   end
 end
 ```
+
+The same behavior occurs when a block is passed to factory methods. [^1]
+
+```ruby
+create.blog do
+  create.article(with.comment)
+  create.article(with_list.comment(3))
+end
+```
+
+[^1]: There is [an incompatible behavior](./lib/factory_bot/with.rb#L121) with FactoryBot. If you want to avoid this, use `Object#tap` manually.
 
 ## Development
 
