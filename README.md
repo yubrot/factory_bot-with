@@ -208,6 +208,35 @@ end
 
 [^1]: There is [an incompatible behavior](./lib/factory_bot/with.rb#L121) with FactoryBot. If you want to avoid this, use `Object#tap` manually.
 
+<details>
+<summary>Comparison</summary>
+
+```ruby
+# This creates a blog with 2 articles, each with 1 comment
+# `with` as an operator:
+create.blog(
+  with_list.article(2, with.comment)
+)
+
+# factory methods with blocks:
+create.blog do
+  create_list.article(2) { create.comment }
+end
+
+# with as a scope syntax for existing blog:
+blog = create.blog
+with(blog:) do
+  create_list.article(2) { create.comment }
+end
+
+# with_list can also be used as a scope syntax:
+blog = create.blog
+articles = with(blog:) { create_list.article(2) }
+with_list(article: articles) { create.comment }
+```
+
+</details>
+
 ## Development
 
 ```bash

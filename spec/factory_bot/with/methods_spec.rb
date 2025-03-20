@@ -174,7 +174,8 @@ RSpec.describe FactoryBot::With::Methods do
       context "when passing a block to list factory methods" do
         subject { build_list.node(3) { build.node } }
 
-        it "calls the block for each created object (incompatible with FactoryBot)" do
+        # This is an incompatible behavior with FactoryBot. See lib/factory_bot/with.rb#L121
+        it "calls the block for each created object" do
           base = subject[0].index
           expect(objects).to eq [
             Test::Node.new(index: base),
@@ -401,11 +402,9 @@ RSpec.describe FactoryBot::With::Methods do
       let(:user) { build.user(name: "John") }
 
       it "works as association resolution candidates" do
-        expect(subject).to eq objects[1]
-        expect(objects).to eq [
-          Test::User.new(name: "John"),
-          Test::Account.new(user: objects[0]),
-        ]
+        account = Test::Account.new(user:)
+        expect(subject).to eq account
+        expect(objects).to eq [user, account]
       end
 
       context "with complex control-flow with Fibers" do
@@ -455,10 +454,10 @@ RSpec.describe FactoryBot::With::Methods do
         it "takes created objects as positional arguments" do
           subject
           expect(objects).to eq [
-            Test::User.new(name: "John"),
-            Test::Node.new(parent: nil, index: 0),
-            Test::Node.new(parent: objects[0], index: 1),
-            Test::Node.new(parent: objects[1], index: 2),
+            user,
+            node,
+            Test::Node.new(parent: user, index: 1),
+            Test::Node.new(parent: node, index: 2),
           ]
         end
       end
@@ -473,10 +472,43 @@ RSpec.describe FactoryBot::With::Methods do
         it "takes created objects as keyword arguments" do
           subject
           expect(objects).to eq [
-            Test::User.new(name: "John"),
-            Test::Node.new(parent: objects[0], index: 1),
+            user,
+            Test::Node.new(parent: user, index: 1),
           ]
         end
+      end
+    end
+  end
+
+  describe "#with_list" do
+    subject { with_list.author(3, :hello, with.post(:world), foo: "bar") }
+
+    it "returns a With instance" do
+      expect(subject).to have_attributes(
+        variation: :list,
+        factory_name: :author,
+        withes: [have_attributes(factory_name: :post, traits: [:world])],
+        traits: [3, :hello], # factory_bot-with interprets numeric arguments as traits
+        attrs: { foo: "bar" },
+        block: nil,
+      )
+    end
+
+    context "without factory name" do
+      subject { with_list(rank:, color:) { build.card } }
+
+      let(:rank) { [build.rank(name: "ace"), build.rank(name: "king")] }
+      let(:color) { [build.color(code: "red"), build.color(code: "blue")] }
+
+      it "works as association resolution candidates" do
+        cards = [
+          Test::Card.new(rank: rank[0], color: color[0]),
+          Test::Card.new(rank: rank[0], color: color[1]),
+          Test::Card.new(rank: rank[1], color: color[0]),
+          Test::Card.new(rank: rank[1], color: color[1]),
+        ]
+        expect(subject).to eq cards
+        expect(objects).to eq [*rank, *color, *cards]
       end
     end
   end

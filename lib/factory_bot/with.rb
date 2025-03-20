@@ -119,6 +119,7 @@ module FactoryBot
           ancestors_for_children = [[assoc_info, parent], *ancestors || []]
           withes.each { _1.instantiate(build_strategy, ancestors_for_children) }
           # We call the block for each parent object. This is an incompatible behavior with FactoryBot!
+          # If you want to avoid this, use `Object#tap` manually.
           self.class.with_scoped_ancestors(ancestors_for_children) { block.call(result) } if block
         end
       end
@@ -156,10 +157,14 @@ module FactoryBot
             elsif args.empty? && kwargs.empty? && !block
               # <__method__>.<factory_name>(...)
               Proxy.new(self, __method__)
-            elsif __method__ == :with && args.empty? && !kwargs.empty?
+            elsif __method__ == :with && args.empty? && !kwargs.empty? && block
               # with(<factory_name>: <object>, ...) { ... }
-              ancestors = kwargs.map { [AssocInfo.get(_1), _2] }
-              With.with_scoped_ancestors(ancestors) { With.yield_with_objects(kwargs, &block) }
+              block = With.call_with_scope_adapter(&block)
+              With.call_with_scope(kwargs, &block)
+            elsif __method__ == :with_list && args.empty? && !kwargs.empty? && block
+              # with_list(<factory_name>: [<object>, ...], ...) { ... }
+              block = With.call_with_scope_adapter(&block)
+              kwargs.values.inject(:product).map { With.call_with_scope(kwargs.keys.zip(_1).to_h, &block) }
             else
               raise ArgumentError, "Invalid use of #{__method__}"
             end
@@ -168,6 +173,9 @@ module FactoryBot
       end
 
       # @!visibility private
+      # @return [Array<Array(AssocInfo, Object)>, nil]
+      def scoped_ancestors = Thread.current[:factory_bot_with_scoped_ancestors]
+
       # @param ancestors [Array<Array(AssocInfo, Object)>]
       def with_scoped_ancestors(ancestors, &)
         tmp_scoped_ancestors = scoped_ancestors
@@ -178,17 +186,20 @@ module FactoryBot
       end
 
       # @!visibility private
-      # @return [Array<Array(AssocInfo, Object)>, nil]
-      def scoped_ancestors = Thread.current[:factory_bot_with_scoped_ancestors]
+      # @param objects [{Symbol => Object}]
+      def call_with_scope(objects, &block)
+        with_scoped_ancestors(objects.map { [AssocInfo.get(_1), _2] }) { block.call(objects) }
+      end
 
-      def yield_with_objects(objects, &block)
+      # @!visibility private
+      def call_with_scope_adapter(&block)
         params = block.parameters
         if params.any? { %i[req opt rest].include?(_1[0]) }
-          block.call(*objects.values)
+          ->(objects) { block.call(*objects.values) }
         elsif params.any? { %i[keyreq key keyrest].include?(_1[0]) }
-          block.call(**objects)
+          ->(objects) { block.call(**objects) }
         else
-          block.call
+          ->(_) { block.call }
         end
       end
     end

@@ -76,6 +76,18 @@ module Test
     end
   end
 
+  # TESTING multiple associations
+  Rank = Struct.new(:name, keyword_init: true)
+  Card = Struct.new(:rank, :color, keyword_init: true)
+
+  FactoryBot.define do
+    factory(:rank, class: "Test::Rank")
+    factory(:card, class: "Test::Card") do
+      rank
+      color
+    end
+  end
+
   # TESTING create and attributes_for
   Record = Struct.new(:name, :title, :created_at, keyword_init: true)
 
