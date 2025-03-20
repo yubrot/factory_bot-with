@@ -1,10 +1,12 @@
 ## [Unreleased]
 
+## [0.5.0] - 2025-03-20
+
 - Added: When using `with` scope syntax, blocks can now take given objects as arguments
 - Added: `with_list` also works as a scope syntax, but calls a block for each product of objects
 - **Changed**: Passing blocks to factory methods behaves same as `with` scope syntax
 
-## [0.4.0]
+## [0.4.0] - 2025-03-15
 
 - Fixed: Improved error message for incorrect factory usage
 - Added: Added `with` scope syntax for automatic association resolution
