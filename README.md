@@ -147,6 +147,70 @@ create.blog(with.article) # autocomplete to :blog_article
 
 ## Additional features
 
+### `with` scope syntax for automatic association resolution
+
+By calling `with` without positional arguments, but with keyword arguments that define the relationship between factory names and objects, along with a block, it creates a scope where those objects become candidates for automatic association resolution.
+
+```ruby
+let(:blog) { create.blog }
+
+before do
+  with(blog:) do
+    # Just like when using `create.blog(with.article)`,
+    # `blog:` is completed automatically at each `create.article`
+    create.article(with.comment)
+    create.article(with_list.comment(3))
+  end
+end
+```
+
+The same behavior occurs when a block is passed to factory methods.
+
+```ruby
+create.blog do
+  create.article(with.comment)
+  create.article(with_list.comment(3))
+end
+```
+
+<details>
+<summary>Comparison</summary>
+
+`_pair` and `_list` methods have [an incompatible behavior](./lib/factory_bot/with.rb#L121) with FactoryBot. If you want to avoid this, just use `Object#tap`.
+
+```ruby
+# This creates a blog with 2 articles, each with 1 comment
+# plain factory_bot:
+create(:blog) do |blog|
+  create_list(:article, 2, blog:) do |articles| # yielded once with an array of articles in plain factory_bot
+    articles.each { |article| create(:comment, article:) }
+  end
+end
+
+# `with` operator:
+create.blog(
+  with_list.article(2, with.comment)
+)
+
+# factory methods with blocks:
+create.blog do
+  create_list.article(2) { create.comment } # yielded *for each article* in factory_bot-with
+end
+
+# with as a scope syntax for existing blog:
+blog = create.blog
+with(blog:) do
+  create_list.article(2) { create.comment }
+end
+
+# with_list can also be used as a scope syntax:
+blog = create.blog
+articles = create_list.article(2, blog:)
+with_list(article: articles) { create.comment } # yielded *for each article*
+```
+
+</details>
+
 ### `with` as a template
 
 `with` can also be used stand-alone. Stand-alone `with` can be used in place of the factory name. It works as a template for factory method calls.
@@ -179,63 +243,6 @@ context "when published more than one year ago" do
   # ...
 end
 ```
-
-### `with` scope syntax for automatic association resolution
-
-By calling `with` without positional arguments, but with keyword arguments that define the relationship between factory names and objects, along with a block, it creates a scope where those objects become candidates for automatic association resolution.
-
-```ruby
-let(:blog) { create.blog }
-
-before do
-  with(blog:) do
-    # Just like when using `create.blog(with.article)`,
-    # `blog` is provided as a keyword argument automatically at each `create.article`
-    create.article(with.comment)
-    create.article(with_list.comment(3))
-  end
-end
-```
-
-The same behavior occurs when a block is passed to factory methods. [^1]
-
-```ruby
-create.blog do
-  create.article(with.comment)
-  create.article(with_list.comment(3))
-end
-```
-
-[^1]: There is [an incompatible behavior](./lib/factory_bot/with.rb#L121) with FactoryBot. If you want to avoid this, use `Object#tap` manually.
-
-<details>
-<summary>Comparison</summary>
-
-```ruby
-# This creates a blog with 2 articles, each with 1 comment
-# `with` as an operator:
-create.blog(
-  with_list.article(2, with.comment)
-)
-
-# factory methods with blocks:
-create.blog do
-  create_list.article(2) { create.comment }
-end
-
-# with as a scope syntax for existing blog:
-blog = create.blog
-with(blog:) do
-  create_list.article(2) { create.comment }
-end
-
-# with_list can also be used as a scope syntax:
-blog = create.blog
-articles = with(blog:) { create_list.article(2) }
-with_list(article: articles) { create.comment }
-```
-
-</details>
 
 ## Development
 
