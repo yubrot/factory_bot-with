@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Added: When using `with` scope syntax, blocks can now take given objects as arguments
+
 ## [0.4.0]
 
 - Fixed: Improved error message for incorrect factory usage

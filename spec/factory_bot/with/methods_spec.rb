@@ -407,6 +407,43 @@ RSpec.describe FactoryBot::With::Methods do
           ]
         end
       end
+
+      context "with a block that takes positional arguments" do
+        subject do
+          with(user:, node:) do |user, node| # keeps order of arguments
+            build.node(parent: user, index: 1)
+            build.node(parent: node, index: 2)
+          end
+        end
+
+        let(:node) { build.node(parent: nil, index: 0) }
+
+        it "takes created objects as positional arguments" do
+          subject
+          expect(objects).to eq [
+            Test::User.new(name: "John"),
+            Test::Node.new(parent: nil, index: 0),
+            Test::Node.new(parent: objects[0], index: 1),
+            Test::Node.new(parent: objects[1], index: 2),
+          ]
+        end
+      end
+
+      context "with a block that takes keyword arguments" do
+        subject do
+          with(user:) do |user:|
+            build.node(parent: user, index: 1)
+          end
+        end
+
+        it "takes created objects as keyword arguments" do
+          subject
+          expect(objects).to eq [
+            Test::User.new(name: "John"),
+            Test::Node.new(parent: objects[0], index: 1),
+          ]
+        end
+      end
     end
   end
 end

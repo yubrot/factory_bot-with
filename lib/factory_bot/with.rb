@@ -166,7 +166,7 @@ module FactoryBot
 
       # @!visibility private
       # @param objects [{Symbol => Object}]
-      def with_scoped_ancestors(objects)
+      def with_scoped_ancestors(objects, &)
         return unless block_given?
 
         tmp_scoped_ancestors = scoped_ancestors
@@ -174,7 +174,7 @@ module FactoryBot
           *objects.map { [AssocInfo.get(_1), _2] },
           *tmp_scoped_ancestors || [],
         ]
-        result = yield
+        result = yield_with_objects(objects, &)
         Thread.current[:factory_bot_with_scoped_ancestors] = tmp_scoped_ancestors
         result
       end
@@ -182,6 +182,19 @@ module FactoryBot
       # @!visibility private
       # @return [Array<Array(AssocInfo, Object)>, nil]
       def scoped_ancestors = Thread.current[:factory_bot_with_scoped_ancestors]
+
+      private
+
+      def yield_with_objects(objects, &block)
+        params = block.parameters
+        if params.any? { %i[req opt rest].include?(_1[0]) }
+          block.call(*objects.values)
+        elsif params.any? { %i[keyreq key keyrest].include?(_1[0]) }
+          block.call(**objects)
+        else
+          block.call
+        end
+      end
     end
 
     %i[build build_stubbed create attributes_for with].each { register_strategy _1 }
