@@ -1,6 +1,37 @@
 # frozen_string_literal: true
 
 RSpec.describe FactoryBot::With do
+  describe "#initialize" do
+    subject { described_class.new(:singular, :user, *args) }
+
+    let(:args) { [] }
+
+    context "with positional arguments of With instances or symbols" do
+      let(:args) { [post, :hello] }
+      let(:post) { described_class.new(:singular, :post) }
+
+      it { is_expected.to have_attributes(withes: [post], traits: [:hello], attrs: {}) }
+    end
+
+    context "with positional arguments of nil or false" do
+      let(:args) { [nil, false] }
+
+      it { is_expected.to have_attributes(withes: [], traits: [], attrs: {}) }
+    end
+
+    context "with positional arguments of arrays" do
+      let(:args) { [[:foo, [nil, :bar]], :baz] }
+
+      it { is_expected.to have_attributes(withes: [], traits: %i[foo bar baz], attrs: {}) }
+    end
+
+    context "with positional arguments of hashes" do
+      let(:args) { [{ x: 123, a: 1, z: 2 }, { y: 456, z: 789 }] }
+
+      it { is_expected.to have_attributes(withes: [], traits: [], attrs: { a: 1, x: 123, y: 456, z: 789 }) }
+    end
+  end
+
   describe "#plain?" do
     subject { with.plain? }
 
@@ -17,7 +48,7 @@ RSpec.describe FactoryBot::With do
     end
   end
 
-  describe "#merge (including .merge_block)" do
+  describe "#merge" do
     subject { first.merge(second) }
 
     let(:first) do
@@ -46,38 +77,5 @@ RSpec.describe FactoryBot::With do
 
   describe "#instantiate" do
     it "is tested in FactoryBot::With::Methods spec"
-  end
-
-  describe ".build (including .insert_args!)" do
-    subject { described_class.build(:singular, :user, *args, **kwargs) }
-
-    let(:args) { [] }
-    let(:kwargs) { {} }
-
-    context "with positional arguments of With instances or symbols" do
-      let(:args) { [post, :hello] }
-      let(:post) { described_class.new(:singular, :post) }
-
-      it { is_expected.to have_attributes(withes: [post], traits: [:hello], attrs: {}) }
-    end
-
-    context "with positional arguments of nil or false" do
-      let(:args) { [nil, false] }
-
-      it { is_expected.to have_attributes(withes: [], traits: [], attrs: {}) }
-    end
-
-    context "with positional arguments of arrays" do
-      let(:args) { [[:foo, [nil, :bar]], :baz] }
-
-      it { is_expected.to have_attributes(withes: [], traits: %i[foo bar baz], attrs: {}) }
-    end
-
-    context "with positional arguments of hashes" do
-      let(:args) { [{ x: 123 }, { y: 456, z: 789 }] }
-      let(:kwargs) { { a: 1, z: 2 } }
-
-      it { is_expected.to have_attributes(withes: [], traits: [], attrs: { x: 123, y: 456, z: 2, a: 1 }) }
-    end
   end
 end

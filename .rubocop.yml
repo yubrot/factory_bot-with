@@ -45,6 +45,9 @@ Metrics/ClassLength:
 Metrics/MethodLength:
   Enabled: false
 
+Metrics/ParameterLists:
+  Enabled: false
+
 Metrics/CyclomaticComplexity:
   Enabled: false
 

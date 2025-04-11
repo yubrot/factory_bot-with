@@ -45,7 +45,7 @@ module FactoryBot
         # @param ancestors [Array<Array(AssocInfo, Object)>]
         # @param partial_factory_name [Symbol]
         # @return [Symbol]
-        def autocomplete_fully_qualified_factory_name(ancestors, partial_factory_name)
+        def perform_factory_name_completion(ancestors, partial_factory_name)
           ancestors.each do |(ancestor_assoc_info, _)|
             ancestor_assoc_info.factory_names.each do |ancestor_factory_name|
               factory_name = :"#{ancestor_factory_name}_#{partial_factory_name}"
@@ -53,8 +53,8 @@ module FactoryBot
             end
           end
 
-          # Attempt to resolve with the autocompleted names, then attempt to resolve with the original name.
-          # If we want to avoid autocompletion, we should be able to simply use a factory such as build or create.
+          # Attempt to resolve with the completed names, then attempt to resolve with the original name.
+          # If we want to avoid completion, we should be able to simply use a factory such as build or create.
           return partial_factory_name if exists?(partial_factory_name)
 
           raise ArgumentError, "FactoryBot factory #{partial_factory_name} is not defined"

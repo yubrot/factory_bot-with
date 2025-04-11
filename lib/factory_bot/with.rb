@@ -4,6 +4,7 @@ require "factory_bot"
 require_relative "with/version"
 require_relative "with/proxy"
 require_relative "with/assoc_info"
+require_relative "with/scoped"
 require_relative "with/methods"
 
 module FactoryBot
@@ -23,7 +24,7 @@ module FactoryBot
     attr_reader :block
 
     # @!visibility private
-    def initialize(variation, factory_name, withes: [], traits: [], attrs: {}, &block)
+    def initialize(variation, factory_name, *, withes: [], traits: [], attrs: {}, &block)
       raise ArgumentError unless %i[singular pair list].include? variation
       raise TypeError unless factory_name.is_a? Symbol
       raise TypeError unless withes.is_a?(Array) && withes.all? { _1.is_a? self.class }
@@ -36,6 +37,8 @@ module FactoryBot
       @traits = traits
       @attrs = attrs
       @block = block
+
+      collect!(*)
     end
 
     # @!visibility private
@@ -46,7 +49,7 @@ module FactoryBot
     # @param other [With]
     # @return [With]
     def merge(other)
-      raise TypeError, "oter must be an instance of #{self.class}" unless other.is_a? self.class
+      raise TypeError, "other must be an instance of #{self.class}" unless other.is_a? self.class
       raise ArgumentError, "other must have the same variation" if other.variation != variation
       raise ArgumentError, "other must have the same factory_name" if other.factory_name != factory_name
 
@@ -72,31 +75,10 @@ module FactoryBot
     end
 
     # @!visibility private
-    def extend!(*args)
-      args.each do |arg|
-        case arg
-        when self.class
-          withes << arg
-        when Symbol, Numeric
-          traits << arg
-        when Array
-          extend!(*arg)
-        when Hash
-          attrs.merge!(arg)
-        when false, nil
-          # Ignored. This behavior is useful for conditional arguments like `is_premium && :premium`
-        else
-          raise ArgumentError, "Unsupported type for factory argument: #{arg}"
-        end
-      end
-      self
-    end
-
-    # @!visibility private
     # @param build_strategy [Symbol]
     # @param ancestors [Array<Array(AssocInfo, Object)>, nil]
     # @return [Object]
-    def instantiate(build_strategy, ancestors = self.class.scoped_ancestors)
+    def instantiate(build_strategy, ancestors = Scoped.ancestors)
       return self if build_strategy == :with
 
       factory_bot_method =
@@ -104,7 +86,7 @@ module FactoryBot
       factory_name, attrs =
         if ancestors
           attrs = @attrs.dup
-          factory_name = AssocInfo.autocomplete_fully_qualified_factory_name(ancestors, @factory_name)
+          factory_name = AssocInfo.perform_factory_name_completion(ancestors, @factory_name)
           AssocInfo.get(factory_name).perform_automatic_association_resolution(ancestors, attrs)
           [factory_name, attrs]
         else
@@ -120,25 +102,35 @@ module FactoryBot
           withes.each { _1.instantiate(build_strategy, ancestors_for_children) }
           # We call the block for each parent object. This is an incompatible behavior with FactoryBot!
           # If you want to avoid this, use `Object#tap` manually.
-          self.class.with_scoped_ancestors(ancestors_for_children) { block.call(result) } if block
+          Scoped.with_ancestors(ancestors_for_children) { block.call(result) } if block
         end
       end
 
       result
     end
 
-    class << self
-      # @!visibility private
-      # @param variation [:singular, :pair, :list]
-      # @param factory [Symbol, With]
-      # @param args [Array<Object>]
-      # @param kwargs [{Symbol => Object}]
-      def build(variation, factory, *, **, &)
-        return factory.merge(build(variation, factory.factory_name, *, **, &)) if factory.is_a? self
+    private
 
-        new(variation, factory, &).extend!(*, { ** })
+    def collect!(*args)
+      args.each do |arg|
+        case arg
+        when self.class
+          withes << arg
+        when Symbol, Numeric
+          traits << arg
+        when Array
+          collect!(*arg)
+        when Hash
+          attrs.merge!(arg)
+        when false, nil
+          # Ignored. This behavior is useful for conditional arguments like `is_premium && :premium`
+        else
+          raise ArgumentError, "Unsupported type for factory argument: #{arg}"
+        end
       end
+    end
 
+    class << self
       # If you want to use a custom strategy, call this along with <code>FactoryBot.register_strategy</code>.
       # @param build_strategy [Symbol]
       # @example
@@ -151,55 +143,28 @@ module FactoryBot
           list: :"#{build_strategy}_list",
         }.each do |variation, method_name|
           Methods.define_method(method_name) do |factory = nil, *args, **kwargs, &block|
-            if factory
+            if factory.is_a? With
+              # <__method__>(<with_instance>, ...)
+              factory
+                .merge(With.new(variation, factory.factory_name, *args, attrs: kwargs, &block))
+                .instantiate(build_strategy)
+            elsif factory
               # <__method__>(<factory_name>, ...)
-              With.build(variation, factory, *args, **kwargs, &block).instantiate(build_strategy)
+              With.new(variation, factory, *args, attrs: kwargs, &block).instantiate(build_strategy)
             elsif args.empty? && kwargs.empty? && !block
               # <__method__>.<factory_name>(...)
               Proxy.new(self, __method__)
             elsif __method__ == :with && args.empty? && !kwargs.empty? && block
               # with(<factory_name>: <object>, ...) { ... }
-              block = With.call_with_scope_adapter(&block)
-              With.call_with_scope(kwargs, &block)
+              Scoped.block(&block).call(kwargs)
             elsif __method__ == :with_list && args.empty? && !kwargs.empty? && block
               # with_list(<factory_name>: [<object>, ...], ...) { ... }
-              block = With.call_with_scope_adapter(&block)
-              kwargs.values.inject(:product).map { With.call_with_scope(kwargs.keys.zip(_1).to_h, &block) }
+              block = Scoped.block(&block)
+              kwargs.values.inject(:product).map { block.call(kwargs.keys.zip(_1).to_h) }
             else
               raise ArgumentError, "Invalid use of #{__method__}"
             end
           end
-        end
-      end
-
-      # @!visibility private
-      # @return [Array<Array(AssocInfo, Object)>, nil]
-      def scoped_ancestors = Thread.current[:factory_bot_with_scoped_ancestors]
-
-      # @param ancestors [Array<Array(AssocInfo, Object)>]
-      def with_scoped_ancestors(ancestors, &)
-        tmp_scoped_ancestors = scoped_ancestors
-        Thread.current[:factory_bot_with_scoped_ancestors] = [*ancestors, *tmp_scoped_ancestors || []]
-        result = yield
-        Thread.current[:factory_bot_with_scoped_ancestors] = tmp_scoped_ancestors
-        result
-      end
-
-      # @!visibility private
-      # @param objects [{Symbol => Object}]
-      def call_with_scope(objects, &block)
-        with_scoped_ancestors(objects.map { [AssocInfo.get(_1), _2] }) { block.call(objects) }
-      end
-
-      # @!visibility private
-      def call_with_scope_adapter(&block)
-        params = block.parameters
-        if params.any? { %i[req opt rest].include?(_1[0]) }
-          ->(objects) { block.call(*objects.values) }
-        elsif params.any? { %i[keyreq key keyrest].include?(_1[0]) }
-          ->(objects) { block.call(**objects) }
-        else
-          ->(_) { block.call }
         end
       end
     end

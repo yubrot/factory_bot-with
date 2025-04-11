@@ -29,7 +29,7 @@ module Test
     end
   end
 
-  # TESTING autocomplete
+  # TESTING completion
   Customer = Struct.new(:id, :plan, keyword_init: true)
   CustomerProfile = Struct.new(:name, :customer, keyword_init: true)
   CustomerInformation = Struct.new(:customer, keyword_init: true)

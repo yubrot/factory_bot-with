@@ -117,10 +117,10 @@ RSpec.describe FactoryBot::With::Methods do
       end
     end
 
-    describe "autocomplete fully-qualified factory name" do
+    describe "factory name completion" do
       subject { build.customer(with.profile(with.user, name: "Hello"), id: 1) }
 
-      it "autocompletes a factory name from ancestors" do
+      it "completes a factory name from ancestors" do
         expect(subject).to eq objects[0]
         expect(objects).to eq [
           Test::Customer.new(id: 1),
@@ -144,7 +144,7 @@ RSpec.describe FactoryBot::With::Methods do
       context "when there are multiple candidates for autocompletion" do
         subject { build.customer(with.information) }
 
-        it "prefers a factory with an autocompleted name" do
+        it "prefers a factory with a completed name" do
           expect(subject).to eq objects[0]
           expect(objects).to eq [
             Test::Customer.new,

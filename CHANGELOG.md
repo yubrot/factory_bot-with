@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- Fixed: Removed some internal methods from `FactoryBot::With`
+
 ## [0.5.0] - 2025-03-20
 
 - Added: When using `with` scope syntax, blocks can now take given objects as arguments
