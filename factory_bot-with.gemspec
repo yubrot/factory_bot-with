@@ -8,8 +8,8 @@ Gem::Specification.new do |spec|
   spec.authors = ["yubrot"]
   spec.email = ["yubrot@gmail.com"]
 
-  spec.summary = "FactoryBot extension that wraps FactoryBot::Syntax::Methods to make it a little easier to use"
-  spec.description = "FactoryBot extension that wraps FactoryBot::Syntax::Methods to make it a little easier to use"
+  spec.summary = "a FactoryBot extension that enhances usability by wrapping factory methods"
+  spec.description = "a FactoryBot extension that enhances usability by wrapping factory methods"
   spec.homepage = "https://github.com/yubrot/factory_bot-with"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.2.0"

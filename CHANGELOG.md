@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.6.0] - 2025-04-11
+
 - Added: Factory methods are now also provided as class methods of `FactoryBot::With`
 - Fixed: Removed some internal methods from `FactoryBot::With`
 
