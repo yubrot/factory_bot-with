@@ -78,4 +78,14 @@ RSpec.describe FactoryBot::With do
   describe "#instantiate" do
     it "is tested in FactoryBot::With::Methods spec"
   end
+
+  describe ".build" do
+    subject { described_class.build.user(name: "John") }
+
+    it "creates an object with the given attributes" do
+      expect(subject).to eq Test::User.new(name: "John")
+    end
+
+    # More detailed tests for factory methods are done in the FactoryBot::With::Methods spec
+  end
 end

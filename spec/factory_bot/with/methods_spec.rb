@@ -20,7 +20,7 @@ RSpec.describe FactoryBot::With::Methods do
     context "when it is called without a factory name" do
       subject { build.user(name: "John") }
 
-      it "works the same way with method style syntax" do
+      it "works the same way as method-style syntax" do
         expect(subject).to eq Test::User.new(name: "John")
       end
     end

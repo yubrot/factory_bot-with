@@ -10,6 +10,8 @@ require_relative "with/methods"
 module FactoryBot
   # An intermediate state for <code>with</code> operator.
   class With
+    extend Methods
+
     # @return [:singular, :pair, :list]
     attr_reader :variation
     # @return [Symbol]
