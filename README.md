@@ -3,11 +3,11 @@
 [![](https://badge.fury.io/rb/factory_bot-with.svg)](https://badge.fury.io/rb/factory_bot-with)
 [![](https://github.com/yubrot/factory_bot-with/actions/workflows/main.yml/badge.svg)](https://github.com/yubrot/factory_bot-with/actions/workflows/main.yml)
 
-FactoryBot::With is a FactoryBot extension that wraps `FactoryBot::Syntax::Methods` to make it a little easier to use.
+FactoryBot::With is a FactoryBot extension that enhances usability by wrapping factory methods.
 
 [FactoryBot における関連の扱いと、factory_bot-with gem を作った話 (Japanese)](https://zenn.dev/yubrot/articles/032447068e308e)
 
-For example, with these factories:
+For example, given these factories:
 
 ```ruby
 FactoryBot.define do
@@ -26,18 +26,18 @@ create(:blog) do |blog|
 end
 ```
 
-FactoryBot::With allows you to write:
+FactoryBot::With allows you to write like this:
 
 ```ruby
-create.blog(
-  with.article(with.comment),
-  with.article(with_list.comment(3)),
-)
+create.blog do
+  create.article { create.comment }
+  create.article { create_list.comment(3) }
+end
 ```
 
 ## Installation
 
-On your Gemfile:
+Add the following line to your Gemfile:
 
 ```ruby
 gem "factory_bot-with"
@@ -54,28 +54,29 @@ RSpec.configure do |config|
 end
 ```
 
+Alternatively, these factory methods are also provided as class methods of `FactoryBot::With`.
+
 ## What differs from `FactoryBot::Syntax::Methods`?
 
-### Method style syntax
+### Method-style syntax
 
-FactoryBot::With overrides the behavior when factory methods are called without arguments.
+FactoryBot::With overrides the behavior of factory methods called without arguments.
 
 ```ruby
-create(:foo, ...)  # behaves in the same way as FactoryBot.create
+create(:foo, ...)  # normal usage
 create             # returns a Proxy (an intermediate) object
 create.foo(...)    # is equivalent to create(:foo, ...)
-```
 
-This applies to other factory methods such as `build_stubbed`, `create_list`, `with` (described later), etc. as well.
-
-```ruby
+# This also applies to other factory methods:
 build_stubbed.foo(...)
 create_list.foo(10, ...)
 ```
 
 ### Smarter interpretation of positional arguments
 
-FactoryBot::With adjusts the behavior of factory methods to accept `Hash`, `Array`, and falsy values (`false` or `nil`) as positional arguments.
+FactoryBot::With allows factory methods to accept `Hash`, `Array`, and falsy values (`false` or `nil`) as positional arguments[^1].
+
+[^1]: The idea for this behavior came from JavaScript libraries such as [clsx](https://github.com/lukeed/clsx).
 
 ```ruby
 create.foo({ title: "Recipe" }, is_new && %i[latest hot])
@@ -85,54 +86,57 @@ create.foo({ title: "Recipe" }, is_new && %i[latest hot])
 
 ### `with`, `with_pair`, and `with_list` operator
 
-FactoryBot::With provides a new operator `with` (and its family).
+FactoryBot::With introduces new operators: `with` (and its family).
+
+- `with(:factory_name, ...)`
+- `with_pair(:factory_name, ...)`
+- `with_list(:factory_name, number_of_items, ...)`
+
+These operators produce a `With` instance. This instance can be passed as an argument to factory methods such as `build` or `create`:
 
 ```ruby
-with(:factory_name, ...)
-with_pair(:factory_name, ...)
-with_list(:factory_name, number_of_items, ...)
+create.blog(with.article(with.comment))
 ```
 
-The result of this operator (`With` instance) can be passed as an argument to factory methods such as `build` or `create`, which can then create additional objects following the result of the factory.
+When the factory method is called, it first collects and removes `With` arguments, then delegates the actual object creation to the standard FactoryBot factory method, and finally creates additional objects based on the factory definition. Above example is equivalent to:
 
 ```ruby
-create.blog(with.article)
-# is equivalent to ...
-blog = create.blog
-create.article(blog:)
+_tmp1 = FactoryBot.create(:blog)
+_tmp2 = FactoryBot.create(:article, blog: _tmp1)
+_tmp3 = FactoryBot.create(:comment, article: _tmp2)
+# Here, `blog: _tmp1` and `article: _tmp2` are automatically completed by AAR (described later)
 ```
-
-The overridden factory methods collect these `with` arguments before delegating object creation to the actual factory methods.
 
 <details>
-<summary>Automatic association resolution</summary>
+<summary>Automatic Association Resolution (AAR)</summary>
 
-`with` automatically resolves references to ancestor objects based on the definition of the FactoryBot associations.
+`with` automatically resolves references to ancestor objects based on the definition in your FactoryBot factories.
 
-This automatic resolution takes into account any [traits](https://thoughtbot.github.io/factory_bot/traits/summary.html) in the factories, [aliases](https://thoughtbot.github.io/factory_bot/sequences/aliases.html) in the factories, and [factory specifications](https://thoughtbot.github.io/factory_bot/associations/specifying-the-factory.html) in the associations.
+This automatic resolution takes into account any [traits](https://thoughtbot.github.io/factory_bot/traits/summary.html), [aliases](https://thoughtbot.github.io/factory_bot/sequences/aliases.html), and [factory specifications](https://thoughtbot.github.io/factory_bot/associations/specifying-the-factory.html) in the definition.
 
 ```ruby
 FactoryBot.define do
   factory(:video)
   factory(:photo)
   factory(:tag) do
+    # `tag` potentially has an association on `taggable` field. `taggable` is either `video` or `photo`.
     trait(:for_video) { taggable factory: :video }
     trait(:for_photo) { taggable factory: :photo }
   end
 end
 
-create.video(with.tag(text: "latest"))  # resolved as taggable: video
-create.photo(with.tag(text: "latest"))  # ...
+create.video(with.tag(text: "latest"))  # resolved as `taggable: <created video object>`
+create.photo(with.tag(text: "latest"))  # resolved as `taggable: <created photo object>`
 ```
 
-Due to technical limitations, [inline associations](https://thoughtbot.github.io/factory_bot/associations/inline-definition.html) cannot be resolved.
+Due to technical limitations, [inline associations](https://thoughtbot.github.io/factory_bot/associations/inline-definition.html) are not taken into account.
 
 </details>
 
 <details>
-<summary>Autocomplete fully-qualified factory name</summary>
+<summary>Factory Name Completion (FNC)</summary>
 
-For a factory name that is prefixed by the parent object's factory name, the prefix can be omitted.
+For a factory name that is prefixed by the ancestor object's factory name, the prefix can be omitted.
 
 ```ruby
 FactoryBot.define do
@@ -140,70 +144,80 @@ FactoryBot.define do
   factory(:blog_article) { blog }
 end
 
-create.blog(with.article) # autocomplete to :blog_article
+create.blog(with.article) # completes to :blog_article
 ```
+
+</details>
+
+### Implicit context scope
+
+FactoryBot::With factory methods can accept a block argument, just like standard FactoryBot. However, in FactoryBot::With, nested factory method calls within a block recognize ancestor objects. This means that nested factory method calls perform AAR and FNC in the same way as the `with` operator.
+
+```ruby
+# Instead of writing:
+create.blog(with.article(with.comment))
+# You can write:
+create.blog { create.article { create.comment } }
+# ^ This works in the same way as:
+create(:blog) do |blog|
+  create(:article, blog:) do |article|
+    create(:comment, article:)
+  end
+end
+```
+
+<details>
+<summary>Incompatible behavior when calling <code>_list</code> or <code>_pair</code> factory methods with a block</summary>
+
+To align the behavior with the `with_list` operator, there is [an incompatible behavior](./lib/factory_bot/with.rb#L121) compared to standard FactoryBot:
+
+```ruby
+# This code creates a blog with 2 articles, each with a comment in standard FactoryBot:
+# This does not work in FactoryBot::With!
+create(:blog) do |blog|
+  create_list(:article, 2, blog:) do |articles| # yielded *once* with an array of articles
+    articles.each { |article| create(:comment, article:) }
+  end
+end
+
+# In FactoryBot::With, blocks are yielded for each object. So we must write like this:
+create.blog do |blog|
+  create_list.article(2, blog:) do |article| # yielded *for each article*
+    create.comment(article:)
+  end
+end
+
+# Again, you can simplify this by (1)omitting the block or (2)using the `with` operator:
+create.blog { create_list.article(2) { create.comment } }  # (1)
+create.blog(with_list.article(2, with.comment))            # (2)
+```
+
+If you want to avoid this incompatibility, you can use `Object#tap`.
 
 </details>
 
 ## Additional features
 
-### `with` scope syntax for automatic association resolution
+### Implicit context scope with existing objects
 
-By calling `with` without positional arguments, but with keyword arguments that define the relationship between factory names and objects, along with a block, it creates a scope where those objects become candidates for automatic association resolution.
+By calling `with` without positional arguments, but with keyword arguments that define the relationship between factory names and objects, along with a block, it creates a context scope where those objects become candidates for AAR and FNC.
 
 ```ruby
 let(:blog) { create.blog }
 
 before do
   with(blog:) do
-    # Just like when using `create.blog(with.article)`,
-    # `blog:` is completed automatically at each `create.article`
+    # Just like `create.blog { ... }`,
+    # the `blog` object is available for AAR and FNC in the following `create.article` calls:
     create.article(with.comment)
     create.article(with_list.comment(3))
   end
 end
 ```
 
-The same behavior occurs when a block is passed to factory methods.
+`with_list` works similarly to `with`, except that it accepts arrays as its values:
 
 ```ruby
-create.blog do
-  create.article(with.comment)
-  create.article(with_list.comment(3))
-end
-```
-
-<details>
-<summary>Comparison</summary>
-
-`_pair` and `_list` methods have [an incompatible behavior](./lib/factory_bot/with.rb#L121) with FactoryBot. If you want to avoid this, just use `Object#tap`.
-
-```ruby
-# This creates a blog with 2 articles, each with 1 comment
-# plain factory_bot:
-create(:blog) do |blog|
-  create_list(:article, 2, blog:) do |articles| # yielded once with an array of articles in plain factory_bot
-    articles.each { |article| create(:comment, article:) }
-  end
-end
-
-# `with` operator:
-create.blog(
-  with_list.article(2, with.comment)
-)
-
-# factory methods with blocks:
-create.blog do
-  create_list.article(2) { create.comment } # yielded *for each article* in factory_bot-with
-end
-
-# with as a scope syntax for existing blog:
-blog = create.blog
-with(blog:) do
-  create_list.article(2) { create.comment }
-end
-
-# with_list can also be used as a scope syntax:
 blog = create.blog
 articles = create_list.article(2, blog:)
 with_list(article: articles) { create.comment } # yielded *for each article*
@@ -211,9 +225,9 @@ with_list(article: articles) { create.comment } # yielded *for each article*
 
 </details>
 
-### `with` as a template
+### `with` as a factory method call template
 
-`with` can also be used stand-alone. Stand-alone `with` can be used in place of the factory name. It works as a template for factory method calls.
+A `With` instance can also be used as a template for factory method calls.
 
 Instead of writing:
 
